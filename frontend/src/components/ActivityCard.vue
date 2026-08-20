@@ -37,14 +37,14 @@ const onClick = () => {
   >
     <img class="cover" :src="activity.cover" alt="" />
     <div class="copy">
-      <div class="row">
-        <h2 class="ab-title title">{{ activity.title }}</h2>
+      <h2 class="ab-title title">{{ activity.title }}</h2>
+      <p class="session">{{ activity.session }}</p>
+      <div class="meta">
+        <p class="spots">名额 {{ activity.booked }} / {{ activity.capacity }}</p>
         <van-tag :type="statusType[activity.status]">
           {{ statusLabel[activity.status] }}
         </van-tag>
       </div>
-      <p class="session">{{ activity.session }}</p>
-      <p class="spots">名额 {{ activity.booked }} / {{ activity.capacity }}</p>
     </div>
   </article>
 </template>
@@ -58,7 +58,7 @@ const onClick = () => {
 }
 
 .card--full {
-  opacity: 0.72;
+  opacity: 0.30;
 }
 
 .cover {
@@ -76,21 +76,21 @@ const onClick = () => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  width: 50%;
-  height: 50%;
+  width: 100%;
+  height: 100%;
   padding: var(--space-sm) var(--space-md);
   background: linear-gradient(
     to right,
-    rgb(0 0 0 / 0%),
-    rgb(0 0 0 / 30%)
+    rgb(0 0 0 / 90%),
+    rgb(0 0 0 / 0%)
   );
 }
 
-.row {
+.meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
 .title,
@@ -100,12 +100,18 @@ const onClick = () => {
 }
 
 .title {
+  margin-bottom: var(--space-sm);
   font-size: var(--font-size-lg);
 }
 
-.session,
-.spots {
+.session {
   margin: var(--space-xs) 0 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+}
+
+.spots {
+  margin: 0;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-sm);
 }

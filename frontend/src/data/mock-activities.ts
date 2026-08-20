@@ -27,7 +27,7 @@ export const camp: Camp = {
 export const activities: Activity[] = [
   {
     id: 'a1',
-    title: '松间夜读',
+    title: '挖甘蔗+榨汁+甘蔗棒棒糖',
     session: '8 月 23 日 19:00–21:00',
     booked: 12,
     capacity: 20,
@@ -36,7 +36,7 @@ export const activities: Activity[] = [
   },
   {
     id: 'a2',
-    title: '晨雾徒步',
+    title: '划船捞河蚌+制作珍珠首饰',
     session: '8 月 24 日 06:30–09:00',
     booked: 8,
     capacity: 16,
@@ -45,7 +45,7 @@ export const activities: Activity[] = [
   },
   {
     id: 'a3',
-    title: '林火料理课',
+    title: '挖地瓜+古法烤地瓜',
     session: '8 月 25 日 16:00–18:30',
     booked: 12,
     capacity: 12,
