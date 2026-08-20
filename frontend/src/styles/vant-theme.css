@@ -1,0 +1,59 @@
+/* Map semantic tokens onto Vant 4 CSS variables. */
+
+:root {
+  --van-black: var(--color-ink);
+  --van-white: #fff;
+  --van-gray-1: var(--color-bg);
+  --van-gray-2: #ebe3d6;
+  --van-gray-3: var(--color-line);
+  --van-gray-4: #d4c6b3;
+  --van-gray-5: #b8ab9a;
+  --van-gray-6: var(--color-ink-muted);
+  --van-gray-7: #4a4742;
+  --van-gray-8: var(--color-ink);
+  --van-red: var(--color-cinnabar);
+  --van-blue: var(--color-pine);
+  --van-green: var(--color-moss);
+
+  --van-primary-color: var(--color-pine);
+  --van-success-color: var(--color-moss);
+  --van-danger-color: var(--color-cinnabar);
+  --van-text-color: var(--color-ink);
+  --van-text-color-2: var(--color-ink-muted);
+  --van-text-color-3: var(--color-ink-muted);
+  --van-active-color: #ebe3d6;
+  --van-background: var(--color-bg);
+  --van-background-2: var(--color-surface);
+  --van-border-color: var(--color-line);
+
+  --van-padding-base: var(--space-base);
+  --van-padding-xs: var(--space-xs);
+  --van-padding-sm: var(--space-sm);
+  --van-padding-md: var(--space-md);
+  --van-padding-lg: var(--space-lg);
+  --van-padding-xl: var(--space-xl);
+
+  --van-font-size-xs: var(--font-size-xs);
+  --van-font-size-sm: var(--font-size-sm);
+  --van-font-size-md: var(--font-size-md);
+  --van-font-size-lg: var(--font-size-lg);
+  --van-base-font: var(--font-sans);
+
+  --van-radius-sm: var(--radius-sm);
+  --van-radius-md: var(--radius-md);
+  --van-radius-lg: var(--radius-lg);
+
+  --van-button-primary-color: var(--color-on-primary);
+  --van-button-primary-background: var(--color-pine);
+  --van-button-primary-border-color: var(--color-pine);
+  --van-button-success-color: var(--color-on-primary);
+  --van-button-success-background: var(--color-moss);
+  --van-button-success-border-color: var(--color-moss);
+
+  --van-nav-bar-background: var(--color-surface);
+  --van-nav-bar-title-text-color: var(--color-ink);
+  --van-nav-bar-icon-color: var(--color-pine);
+  --van-nav-bar-text-color: var(--color-pine);
+
+  --van-toast-background: rgba(43, 42, 39, 0.82);
+}
