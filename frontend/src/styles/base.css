@@ -38,3 +38,63 @@ body,
   font-family: var(--font-sans);
   font-weight: 600;
 }
+
+/* 确认框（van-dialog 挂在 body 下，需全局样式） */
+.ab-dialog {
+  width: min(86vw, 320px);
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgb(43 42 39 / 18%);
+}
+
+.ab-dialog .van-dialog__header {
+  padding: var(--space-lg) var(--space-md) 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  line-height: var(--line-height-sm);
+  color: var(--color-ink);
+}
+
+.ab-dialog .van-dialog__content {
+  padding: var(--space-sm) var(--space-md) var(--space-lg);
+}
+
+.ab-dialog .van-dialog__message {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-md);
+  color: var(--color-ink-muted);
+}
+
+.ab-dialog .van-dialog__footer {
+  padding: var(--space-md) var(--space-md) var(--space-md);
+  gap: var(--space-sm);
+}
+
+.ab-dialog .van-dialog__footer::before {
+  content: none;
+}
+
+.ab-dialog .van-dialog__cancel,
+.ab-dialog .van-dialog__confirm {
+  height: 50px;
+  margin: 0;
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+}
+
+.ab-dialog .van-dialog__cancel {
+  color: var(--color-ink-muted);
+  background: var(--color-bg);
+}
+
+.ab-dialog .van-dialog__cancel::before {
+  content: none;
+}
+
+.ab-dialog .van-dialog__confirm {
+  color: var(--color-on-primary);
+  background: var(--color-pine);
+}

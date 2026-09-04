@@ -1,28 +1,38 @@
 <script setup lang="ts">
-import { showToast } from 'vant'
+import { useRouter } from 'vue-router'
 import CampHeader from '../components/CampHeader.vue'
 import ActivityCard from '../components/ActivityCard.vue'
 import { activities, camp, type Activity } from '../data/mock-activities'
 
+const router = useRouter()
+
 const onSelect = (activity: Activity) => {
-  if (activity.status === 'full') {
-    showToast('名额已满')
-    return
-  }
-  showToast('详情页将在下一步加入')
+  void router.push({ name: 'activity', params: { id: activity.id } })
+}
+
+const goBookings = () => {
+  void router.push({ name: 'bookings' })
+}
+
+const goCamp = () => {
+  void router.push({ name: 'camp' })
 }
 </script>
 
 <template>
   <div class="ab-page">
     <div class="hero">
-      <CampHeader :camp="camp" />
+      <CampHeader :camp="camp" @select="goCamp" />
       <div class="hero-nav">
         <van-nav-bar
-          title="营地活动预约"
           safe-area-inset-top
           :border="false"
-        />
+          @click-right="goBookings"
+        >
+          <template #right>
+            <span class="nav-right">我的预约</span>
+          </template>
+        </van-nav-bar>
       </div>
     </div>
     <div class="page-body">
@@ -62,8 +72,20 @@ const onSelect = (activity: Activity) => {
   --van-nav-bar-title-text-color: var(--color-on-primary);
 }
 
+.nav-right {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-on-primary);
+}
+
 .page-body {
-  padding: var(--space-md);
+  position: relative;
+  z-index: 1;
+  margin-top: -24px;
+  padding: var(--space-lg) var(--space-md) var(--space-md);
+  background: var(--color-bg);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 24px rgb(43 42 39 / 10%);
 }
 
 .list-title {

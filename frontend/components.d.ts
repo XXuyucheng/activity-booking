@@ -12,12 +12,22 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ActivityCard: typeof import('./src/components/ActivityCard.vue')['default']
+    BookingFormDialog: typeof import('./src/components/BookingFormDialog.vue')['default']
     CampHeader: typeof import('./src/components/CampHeader.vue')['default']
+    DateStrip: typeof import('./src/components/DateStrip.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
     VanButton: typeof import('vant/es')['Button']
     VanCell: typeof import('vant/es')['Cell']
     VanCellGroup: typeof import('vant/es')['CellGroup']
     VanField: typeof import('vant/es')['Field']
+    VanForm: typeof import('vant/es')['Form']
+    VanIcon: typeof import('vant/es')['Icon']
     VanNavBar: typeof import('vant/es')['NavBar']
+    VanPopup: typeof import('vant/es')['Popup']
+    VanStepper: typeof import('vant/es')['Stepper']
+    VanSwipe: typeof import('vant/es')['Swipe']
+    VanSwipeItem: typeof import('vant/es')['SwipeItem']
     VanTag: typeof import('vant/es')['Tag']
   }
 }

@@ -6,6 +6,7 @@ dist/
 frontend/dist/
 
 backend/.venv/
+backend/后端/
 .venv/
 __pycache__/
 *.pyc
