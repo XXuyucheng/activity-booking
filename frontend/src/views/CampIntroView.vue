@@ -1,23 +1,51 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showImagePreview } from 'vant'
-import ActivityCard from '../components/ActivityCard.vue'
+import ActivityCard, {
+  type ActivityCardItem,
+} from '../components/ActivityCard.vue'
 import campPoster from '../assets/camp-poster.webp'
 import campMap from '../assets/camp-ground.png'
-import {
-  activities,
-  camp,
-  packLabel,
-  type Activity,
-} from '../data/mock-activities'
+import { fetchCamp, fetchCampActivities } from '../api/catalog'
+import { camp as campMock, packLabel } from '../data/mock-activities'
+import { coverUrl } from '../lib/cover'
 
 const router = useRouter()
-
+const camp = ref({ ...campMock })
+const list = ref<ActivityCardItem[]>([])
 const heroImages = [campPoster]
 
 const previewMap = () => {
   showImagePreview({ images: [campMap], closeable: true })
 }
+
+const load = async () => {
+  try {
+    const [apiCamp, activities] = await Promise.all([
+      fetchCamp(),
+      fetchCampActivities(),
+    ])
+    camp.value = {
+      ...campMock,
+      name: apiCamp.name,
+      intro: apiCamp.description || campMock.intro,
+    }
+    list.value = activities.map((item) => ({
+      id: item.id,
+      name: item.name,
+      cover: coverUrl(item.cover),
+      price: item.price,
+      status: item.status,
+    }))
+  } catch {
+    list.value = []
+  }
+}
+
+onMounted(() => {
+  void load()
+})
 
 const goBack = () => {
   if (window.history.state?.back) {
@@ -31,7 +59,7 @@ const goHome = () => {
   void router.push({ name: 'home' })
 }
 
-const onSelect = (activity: Activity) => {
+const onSelect = (activity: ActivityCardItem) => {
   void router.push({ name: 'activity', params: { id: activity.id } })
 }
 
@@ -96,7 +124,7 @@ const goPack = (packId: string) => {
       <h2 class="ab-title section-title">本期活动</h2>
       <div class="list">
         <ActivityCard
-          v-for="item in activities"
+          v-for="item in list"
           :key="item.id"
           :activity="item"
           @select="onSelect"

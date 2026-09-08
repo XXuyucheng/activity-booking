@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -17,6 +18,9 @@ from app.repositories.camp import CampRepository
 from app.repositories.schedule import ScheduleRepository
 from app.schemas.booking import BookingResponse, CreateBookingRequest
 from app.services.camp import PUBLISHED
+from app.services.notification import NotificationService
+
+logger = logging.getLogger(__name__)
 
 CANCEL_LEAD = timedelta(hours=24)
 
@@ -34,6 +38,7 @@ class BookingService:
         self._schedules = ScheduleRepository(db)
         self._activities = ActivityRepository(db)
         self._camps = CampRepository(db)
+        self._notifications = NotificationService(db)
 
     def create(self, user: User, payload: CreateBookingRequest) -> BookingResponse:
         schedule = self._schedules.get_by_id_for_update(payload.schedule_id)
@@ -67,6 +72,7 @@ class BookingService:
         except IntegrityError as exc:
             self._db.rollback()
             raise ConflictError("not enough remaining") from exc
+        self._notify_after_commit(booking.id, created=True)
         return self._to_response(booking, activity, schedule)
 
     def list_mine(self, user: User) -> list[BookingResponse]:
@@ -91,10 +97,25 @@ class BookingService:
         booking.status = "expired"
         self._schedules.add_booked(schedule, -heads)
         self._db.commit()
+        self._notify_after_commit(booking.id, created=False)
         activity = self._activities.get_by_id(booking.activity_id)
         if activity is None:
             raise NotFoundError("activity not found")
         return self._to_response(booking, activity, schedule)
+
+    def _notify_after_commit(self, booking_id: uuid.UUID, *, created: bool) -> None:
+        try:
+            if created:
+                self._notifications.notify_created(booking_id)
+            else:
+                self._notifications.notify_cancelled(booking_id)
+        except Exception:
+            logger.warning(
+                "notify %s failed booking=%s",
+                "success" if created else "cancel",
+                booking_id,
+                exc_info=True,
+            )
 
     def _owned(self, user: User, booking_id: str) -> Booking:
         try:

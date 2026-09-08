@@ -2,8 +2,6 @@ import activityCover from '../assets/activity-cover.png'
 import activityCoverPearl from '../assets/activity-cover-pearl.png'
 import kaodigua from '../assets/kaodigua.webp'
 
-export type ActivityStatus = 'open' | 'ongoing' | 'full'
-
 export type CampFacility = {
   name: string
   packId: string | null
@@ -33,34 +31,16 @@ export type Camp = {
   facilities: CampFacility[]
 }
 
-export type ActivitySlot = {
-  time: string
-  booked: number
-  capacity: number
-}
-
-export type ActivitySession = {
-  date: string
-  weekday: string
-  slots: ActivitySlot[]
-}
-
 export type ActivityDetailSection = {
   heading: string
   body: string
 }
 
-export type Activity = {
-  id: string
+export type ActivityExtras = {
   title: string
-  price: number
-  childPrice: number
-  notice: string
-  cover: string
   images: string[]
   intro: string
   tags: string[]
-  sessions: ActivitySession[]
   highlights: string[]
   detail: ActivityDetailSection[]
 }
@@ -126,56 +106,13 @@ export const bookingRules: RuleSection[] = [
   },
 ]
 
-export const activities: Activity[] = [
+export const activityExtras: ActivityExtras[] = [
   {
-    id: 'a1',
     title: '挖甘蔗+榨汁+甘蔗棒棒糖',
-    price: 68,
-    childPrice: 38,
-    notice: '3–12 岁享儿童价，需家长全程陪同；如遇小雨活动照常，大雨提前通知改期。',
-    cover: activityCover,
     images: [activityCover, activityCoverPearl, kaodigua],
     intro:
       '走进甘蔗田亲手砍一节，现场榨汁，再做成一支甘蔗棒棒糖。适合亲子慢玩，约两小时。',
     tags: ['亲子', '农事体验', '甜品'],
-    sessions: [
-      {
-        date: '2026-08-22',
-        weekday: '周六',
-        slots: [
-          { time: '10:00–11:30', booked: 8, capacity: 8 },
-          { time: '14:00–15:30', booked: 6, capacity: 8 },
-          { time: '16:00–17:30', booked: 4, capacity: 8 },
-        ],
-      },
-      {
-        date: '2026-08-23',
-        weekday: '周日',
-        slots: [
-          { time: '10:00–11:30', booked: 5, capacity: 8 },
-          { time: '14:00–15:30', booked: 7, capacity: 8 },
-          { time: '16:00–17:30', booked: 0, capacity: 8 },
-        ],
-      },
-      {
-        date: '2026-08-29',
-        weekday: '周六',
-        slots: [
-          { time: '10:00–11:30', booked: 8, capacity: 8 },
-          { time: '14:00–15:30', booked: 8, capacity: 8 },
-          { time: '16:00–17:30', booked: 8, capacity: 8 },
-        ],
-      },
-      {
-        date: '2026-08-30',
-        weekday: '周日',
-        slots: [
-          { time: '10:00–11:30', booked: 2, capacity: 8 },
-          { time: '14:00–15:30', booked: 3, capacity: 8 },
-          { time: '16:00–17:30', booked: 1, capacity: 8 },
-        ],
-      },
-    ],
     highlights: ['下田砍一节甘蔗', '现榨一杯甘蔗汁', '熬糖做棒棒糖'],
     detail: [
       {
@@ -197,42 +134,10 @@ export const activities: Activity[] = [
     ],
   },
   {
-    id: 'a2',
     title: '划船捞河蚌+制作珍珠首饰',
-    price: 128,
-    childPrice: 88,
-    notice: '3–12 岁享儿童价；水上活动儿童须穿救生衣并由家长同船陪同。',
-    cover: activityCoverPearl,
     images: [activityCoverPearl, activityCover, kaodigua],
-    intro:
-      '清晨下河划船捞河蚌，开蚌取珠，把一颗珍珠做成手链或耳坠带回家。',
+    intro: '清晨下河划船捞河蚌，开蚌取珠，把一颗珍珠做成手链或耳坠带回家。',
     tags: ['手作', '水上', '限定晨场'],
-    sessions: [
-      {
-        date: '2026-08-24',
-        weekday: '周一',
-        slots: [
-          { time: '06:30–08:00', booked: 8, capacity: 8 },
-          { time: '08:30–10:00', booked: 8, capacity: 8 },
-        ],
-      },
-      {
-        date: '2026-08-25',
-        weekday: '周二',
-        slots: [
-          { time: '06:30–08:00', booked: 8, capacity: 8 },
-          { time: '08:30–10:00', booked: 8, capacity: 8 },
-        ],
-      },
-      {
-        date: '2026-08-31',
-        weekday: '周一',
-        slots: [
-          { time: '06:30–08:00', booked: 8, capacity: 8 },
-          { time: '08:30–10:00', booked: 8, capacity: 8 },
-        ],
-      },
-    ],
     highlights: ['清晨划船下河', '开蚌取珍珠', '做一件首饰'],
     detail: [
       {
@@ -254,50 +159,10 @@ export const activities: Activity[] = [
     ],
   },
   {
-    id: 'a3',
     title: '挖地瓜+古法烤地瓜',
-    price: 58,
-    childPrice: 28,
-    notice: '3–12 岁享儿童价；窑边温度高，请家长看好小朋友，勿靠近火口。',
-    cover: kaodigua,
     images: [kaodigua, activityCover, activityCoverPearl],
-    intro:
-      '田间挖地瓜，用柴火窑慢慢烤熟。傍晚出窑，热乎乎分着吃。',
+    intro: '田间挖地瓜，用柴火窑慢慢烤熟。傍晚出窑，热乎乎分着吃。',
     tags: ['农事体验', '柴火', '傍晚场'],
-    sessions: [
-      {
-        date: '2026-08-25',
-        weekday: '周二',
-        slots: [
-          { time: '15:00–16:30', booked: 7, capacity: 10 },
-          { time: '17:00–18:30', booked: 5, capacity: 10 },
-        ],
-      },
-      {
-        date: '2026-08-26',
-        weekday: '周三',
-        slots: [
-          { time: '15:00–16:30', booked: 2, capacity: 10 },
-          { time: '17:00–18:30', booked: 2, capacity: 10 },
-        ],
-      },
-      {
-        date: '2026-09-01',
-        weekday: '周二',
-        slots: [
-          { time: '15:00–16:30', booked: 10, capacity: 10 },
-          { time: '17:00–18:30', booked: 10, capacity: 10 },
-        ],
-      },
-      {
-        date: '2026-09-02',
-        weekday: '周三',
-        slots: [
-          { time: '15:00–16:30', booked: 5, capacity: 10 },
-          { time: '17:00–18:30', booked: 4, capacity: 10 },
-        ],
-      },
-    ],
     highlights: ['田里挖地瓜', '柴火窑慢烤', '傍晚分着吃'],
     detail: [
       {
@@ -320,36 +185,11 @@ export const activities: Activity[] = [
   },
 ]
 
-export const getActivityById = (id: string) =>
-  activities.find((item) => item.id === id)
+export const getMockExtrasByName = (name: string) =>
+  activityExtras.find((item) => item.title === name)
 
 export const getPackById = (id: string) =>
   campPacks.find((item) => item.id === id)
 
 export const packLabel = (packId: string | null) =>
   packId ? (getPackById(packId)?.name ?? '套票') : '免费开放'
-
-export const slotRemaining = (slot: ActivitySlot) => slot.capacity - slot.booked
-
-export const isSlotFull = (slot: ActivitySlot) => slotRemaining(slot) <= 0
-
-export const sessionBooked = (session: ActivitySession) =>
-  session.slots.reduce((sum, slot) => sum + slot.booked, 0)
-
-export const sessionCapacity = (session: ActivitySession) =>
-  session.slots.reduce((sum, slot) => sum + slot.capacity, 0)
-
-export const isSessionFull = (session: ActivitySession) =>
-  session.slots.every(isSlotFull)
-
-export const activityBooked = (activity: Activity) =>
-  activity.sessions.reduce((sum, session) => sum + sessionBooked(session), 0)
-
-export const activityCapacity = (activity: Activity) =>
-  activity.sessions.reduce((sum, session) => sum + sessionCapacity(session), 0)
-
-export const activityStatus = (activity: Activity): ActivityStatus =>
-  activity.sessions.every(isSessionFull) ? 'full' : 'open'
-
-export const nextOpenSession = (activity: Activity) =>
-  activity.sessions.find((session) => !isSessionFull(session))

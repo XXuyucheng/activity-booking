@@ -1,46 +1,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  activityBooked,
-  activityCapacity,
-  activityStatus,
-  nextOpenSession,
-  type Activity,
-  type ActivityStatus,
-} from '../data/mock-activities'
+
+export type ActivityCardItem = {
+  id: string
+  name: string
+  cover: string
+  price: string | number
+  status: 'open' | 'full'
+}
 
 const props = defineProps<{
-  activity: Activity
+  activity: ActivityCardItem
 }>()
 
 const emit = defineEmits<{
-  select: [activity: Activity]
+  select: [activity: ActivityCardItem]
 }>()
 
-const statusLabel: Record<ActivityStatus, string> = {
-  open: '可预约',
-  ongoing: '进行中',
-  full: '已满',
-}
+const statusLabel = computed(() =>
+  props.activity.status === 'full' ? '已满' : '可预约',
+)
 
-const statusType: Record<ActivityStatus, 'primary' | 'success' | 'danger'> = {
-  open: 'primary',
-  ongoing: 'success',
-  full: 'danger',
-}
-
-const status = computed(() => activityStatus(props.activity))
-
-const slotsPreview = computed(() => {
-  const session = nextOpenSession(props.activity)
-  if (!session) return '全部时段已满'
-  const [, month, day] = session.date.split('-')
-  const times = session.slots
-    .slice(0, 3)
-    .map((slot) => slot.time.split('–')[0])
-    .join(' / ')
-  return `${Number(month)}/${day} ${session.weekday} · ${times}`
-})
+const statusType = computed(() =>
+  props.activity.status === 'full' ? 'danger' : 'primary',
+)
 
 const onClick = () => {
   emit('select', props.activity)
@@ -50,7 +33,7 @@ const onClick = () => {
 <template>
   <article
     class="card"
-    :class="{ 'card--full': status === 'full' }"
+    :class="{ 'card--full': activity.status === 'full' }"
     role="button"
     tabindex="0"
     @click="onClick"
@@ -58,15 +41,11 @@ const onClick = () => {
   >
     <img class="cover" :src="activity.cover" alt="" />
     <div class="copy">
-      <h2 class="ab-title title">{{ activity.title }}</h2>
-      <p class="session">{{ slotsPreview }}</p>
+      <h2 class="ab-title title">{{ activity.name }}</h2>
       <div class="meta">
-        <p class="spots">
-          名额 {{ activityBooked(activity) }} / {{ activityCapacity(activity) }}
-        </p>
         <p class="price">¥{{ activity.price }}<small>/人起</small></p>
-        <van-tag :type="statusType[status]">
-          {{ statusLabel[status] }}
+        <van-tag :type="statusType">
+          {{ statusLabel }}
         </van-tag>
       </div>
     </div>
@@ -127,27 +106,10 @@ const onClick = () => {
   margin-top: var(--space-xs);
 }
 
-.title,
-.session,
-.spots {
-  color: #fff;
-}
-
 .title {
   margin-bottom: var(--space-sm);
   font-size: var(--font-size-lg);
-}
-
-.session {
-  margin: var(--space-xs) 0 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-sm);
-}
-
-.spots {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-sm);
+  color: #fff;
 }
 
 .price {

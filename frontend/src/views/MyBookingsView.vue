@@ -2,29 +2,47 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  loadBookings,
-  type BookingRecord,
-  type BookingStatus,
-} from '../data/bookings'
-import { getActivityById } from '../data/mock-activities'
+  fetchBookings,
+  type BookingResponse,
+} from '../api/bookings'
+import { ApiError, redirectToLogin } from '../api/http'
+import { coverUrl } from '../lib/cover'
+import { formatClockRange } from '../lib/schedules'
+import { getMockExtrasByName } from '../data/mock-activities'
 
 const router = useRouter()
-const list = ref<BookingRecord[]>([])
+const list = ref<BookingResponse[]>([])
+const loading = ref(true)
 
-const statusLabel: Record<BookingStatus, string> = {
+const statusLabel: Record<string, string> = {
   pending: '已预约待建联',
   contacted: '已建联',
   expired: '失效',
 }
 
-const statusType: Record<BookingStatus, 'primary' | 'success' | 'default'> = {
+const statusType: Record<string, 'primary' | 'success' | 'default'> = {
   pending: 'primary',
   contacted: 'success',
   expired: 'default',
 }
 
+const load = async () => {
+  loading.value = true
+  try {
+    list.value = await fetchBookings()
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirectToLogin()
+      return
+    }
+    list.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
-  list.value = loadBookings()
+  void load()
 })
 
 const goBack = () => {
@@ -43,8 +61,13 @@ const openDetail = (id: string) => {
   void router.push({ name: 'booking-detail', params: { id } })
 }
 
-const coverOf = (item: BookingRecord) =>
-  getActivityById(item.activityId)?.cover
+const coverOf = (item: BookingResponse) => {
+  const extras = getMockExtrasByName(item.activity_name)
+  return extras?.images[0] ?? coverUrl('')
+}
+
+const sessionOf = (item: BookingResponse) =>
+  formatClockRange(item.start_time, item.end_time)
 </script>
 
 <template>
@@ -57,7 +80,8 @@ const coverOf = (item: BookingRecord) =>
     />
 
     <div class="page-body">
-      <template v-if="list.length">
+      <p v-if="loading" class="count">加载中…</p>
+      <template v-else-if="list.length">
         <p class="count">共 {{ list.length }} 条</p>
         <div class="list">
           <article
@@ -77,20 +101,20 @@ const coverOf = (item: BookingRecord) =>
             />
             <div class="card-body">
               <div class="card-head">
-                <h2 class="ab-title card-title">{{ item.title }}</h2>
-                <van-tag :type="statusType[item.status]">
-                  {{ statusLabel[item.status] }}
+                <h2 class="ab-title card-title">{{ item.activity_name }}</h2>
+                <van-tag :type="statusType[item.status] ?? 'default'">
+                  {{ statusLabel[item.status] ?? item.status }}
                 </van-tag>
                 <span class="card-arrow">›</span>
               </div>
-              <p class="card-session">{{ item.sessionLabel }}</p>
+              <p class="card-session">{{ sessionOf(item) }}</p>
               <p class="card-meta">
-                {{ item.name }} · 成人 {{ item.count }}
-                <template v-if="item.childCount">· 儿童 {{ item.childCount }}</template>
-                · {{ item.phone }}
+                {{ item.contact_name }} · 成人 {{ item.adult_count }}
+                <template v-if="item.child_count">· 儿童 {{ item.child_count }}</template>
+                · {{ item.contact_phone }}
               </p>
               <p v-if="item.remark" class="card-remark">备注：{{ item.remark }}</p>
-              <p class="card-total">合计 <span>¥{{ item.totalPrice }}</span></p>
+              <p class="card-total">合计 <span>¥{{ item.total_price }}</span></p>
             </div>
           </article>
         </div>

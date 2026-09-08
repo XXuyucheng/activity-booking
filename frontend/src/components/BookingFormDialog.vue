@@ -8,7 +8,6 @@ export type BookingPayload = {
   childCount: number
   phone: string
   remark: string
-  totalPrice: number
 }
 
 const props = defineProps<{
@@ -19,6 +18,7 @@ const props = defineProps<{
   childPrice: number
   notice: string
   activityId: string
+  submitting?: boolean
 }>()
 
 const router = useRouter()
@@ -44,6 +44,14 @@ const phoneRules = [
   },
 ]
 
+const remaining = computed(() => Math.max(props.maxCount, 0))
+const adultMax = computed(() =>
+  Math.max(remaining.value - childCount.value, 1),
+)
+const childMax = computed(() =>
+  Math.max(remaining.value - count.value, 0),
+)
+
 const reset = () => {
   name.value = ''
   count.value = 1
@@ -59,11 +67,18 @@ watch(
   },
 )
 
+watch([count, childCount, remaining], () => {
+  if (count.value > adultMax.value) count.value = adultMax.value
+  if (childCount.value > childMax.value) childCount.value = childMax.value
+  if (count.value < 1) count.value = 1
+})
+
 const total = computed(
   () => props.price * count.value + props.childPrice * childCount.value,
 )
 
 const close = () => {
+  if (props.submitting) return
   emit('update:show', false)
 }
 
@@ -73,15 +88,15 @@ const openRules = () => {
 }
 
 const onSubmit = () => {
+  if (props.submitting) return
+  if (count.value + childCount.value > remaining.value) return
   emit('submit', {
     name: name.value.trim(),
     count: count.value,
     childCount: childCount.value,
     phone: phone.value.trim(),
     remark: remark.value.trim(),
-    totalPrice: total.value,
   })
-  close()
 }
 </script>
 
@@ -91,6 +106,7 @@ const onSubmit = () => {
     position="center"
     round
     class="dialog"
+    :close-on-click-overlay="!submitting"
     @update:show="emit('update:show', $event)"
   >
     <div class="head">
@@ -121,12 +137,12 @@ const onSubmit = () => {
         />
         <van-field name="count" label="成人">
           <template #input>
-            <van-stepper v-model="count" min="1" :max="maxCount" />
+            <van-stepper v-model="count" integer min="1" :max="adultMax" />
           </template>
         </van-field>
         <van-field name="childCount" label="儿童">
           <template #input>
-            <van-stepper v-model="childCount" min="0" :max="maxCount" />
+            <van-stepper v-model="childCount" integer min="0" :max="childMax" />
           </template>
         </van-field>
         <van-field
@@ -153,7 +169,12 @@ const onSubmit = () => {
         <p class="total">
           合计 <span class="total-price">¥{{ total }}</span>
         </p>
-        <van-button type="primary" block native-type="submit">
+        <van-button
+          type="primary"
+          block
+          native-type="submit"
+          :loading="submitting"
+        >
           提交预约
         </van-button>
       </div>

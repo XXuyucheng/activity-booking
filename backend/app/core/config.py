@@ -27,6 +27,9 @@ class Settings:
     wechat_app_secret: str
     wechat_oauth_redirect_uri: str
     wechat_oauth_state_secret: str
+    wechat_tpl_booking_success: str
+    wechat_tpl_booking_cancel: str
+    wechat_tpl_booking_reminder: str
     session_cookie_name: str
     session_cookie_secure: bool
     session_ttl_seconds: int
@@ -35,6 +38,21 @@ class Settings:
     @property
     def wechat_oauth_mock(self) -> bool:
         return not (self.wechat_app_id and self.wechat_app_secret)
+
+    def wechat_template_id(self, kind: str) -> str:
+        mapping = {
+            "success": self.wechat_tpl_booking_success,
+            "cancel": self.wechat_tpl_booking_cancel,
+            "reminder": self.wechat_tpl_booking_reminder,
+        }
+        return mapping.get(kind, "")
+
+    def wechat_notify_ready(self, kind: str) -> bool:
+        return bool(
+            self.wechat_app_id
+            and self.wechat_app_secret
+            and self.wechat_template_id(kind)
+        )
 
 
 @lru_cache
@@ -53,6 +71,9 @@ def get_settings() -> Settings:
         wechat_app_secret=_env("WECHAT_APP_SECRET"),
         wechat_oauth_redirect_uri=_env("WECHAT_OAUTH_REDIRECT_URI"),
         wechat_oauth_state_secret=state_secret,
+        wechat_tpl_booking_success=_env("WECHAT_TPL_BOOKING_SUCCESS"),
+        wechat_tpl_booking_cancel=_env("WECHAT_TPL_BOOKING_CANCEL"),
+        wechat_tpl_booking_reminder=_env("WECHAT_TPL_BOOKING_REMINDER"),
         session_cookie_name=_env("SESSION_COOKIE_NAME") or "ab_session",
         session_cookie_secure=secure,
         session_ttl_seconds=ttl,

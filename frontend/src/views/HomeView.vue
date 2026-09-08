@@ -1,12 +1,52 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import CampHeader from '../components/CampHeader.vue'
-import ActivityCard from '../components/ActivityCard.vue'
-import { activities, camp, type Activity } from '../data/mock-activities'
+import ActivityCard, {
+  type ActivityCardItem,
+} from '../components/ActivityCard.vue'
+import { fetchCamp, fetchCampActivities } from '../api/catalog'
+import { camp as campMock } from '../data/mock-activities'
+import { coverUrl } from '../lib/cover'
 
 const router = useRouter()
+const headerCamp = ref({ ...campMock })
+const list = ref<ActivityCardItem[]>([])
+const loading = ref(true)
+const error = ref('')
 
-const onSelect = (activity: Activity) => {
+const load = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const [camp, activities] = await Promise.all([
+      fetchCamp(),
+      fetchCampActivities(),
+    ])
+    headerCamp.value = {
+      ...campMock,
+      name: camp.name,
+      intro: camp.description || campMock.intro,
+    }
+    list.value = activities.map((item) => ({
+      id: item.id,
+      name: item.name,
+      cover: coverUrl(item.cover),
+      price: item.price,
+      status: item.status,
+    }))
+  } catch {
+    error.value = '活动加载失败，请确认后端已启动'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  void load()
+})
+
+const onSelect = (activity: ActivityCardItem) => {
   void router.push({ name: 'activity', params: { id: activity.id } })
 }
 
@@ -22,7 +62,7 @@ const goCamp = () => {
 <template>
   <div class="ab-page">
     <div class="hero">
-      <CampHeader :camp="camp" @select="goCamp" />
+      <CampHeader :camp="headerCamp" @select="goCamp" />
       <div class="hero-nav">
         <van-nav-bar
           safe-area-inset-top
@@ -37,9 +77,11 @@ const goCamp = () => {
     </div>
     <div class="page-body">
       <h2 class="ab-title list-title">本期活动</h2>
-      <div class="list">
+      <p v-if="loading" class="hint">加载中…</p>
+      <p v-else-if="error" class="hint">{{ error }}</p>
+      <div v-else class="list">
         <ActivityCard
-          v-for="item in activities"
+          v-for="item in list"
           :key="item.id"
           :activity="item"
           @select="onSelect"
@@ -91,6 +133,12 @@ const goCamp = () => {
 .list-title {
   margin: 0 0 var(--space-sm);
   font-size: var(--font-size-lg);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-ink-muted);
 }
 
 .list {

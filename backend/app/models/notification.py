@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class NotificationLog(Base):
-    """微信通知记录。第 15 步再用。"""
+    """微信通知记录。"""
 
     __tablename__ = "notification_logs"
 

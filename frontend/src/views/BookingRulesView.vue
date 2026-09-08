@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { bookingRules, getActivityById } from '../data/mock-activities'
+import { fetchActivity } from '../api/catalog'
+import { bookingRules } from '../data/mock-activities'
 
 const route = useRoute()
 const router = useRouter()
+const notice = ref('')
 
-const activity = computed(() => {
+onMounted(() => {
   const id = String(route.query.activityId ?? '')
-  return id ? getActivityById(id) : undefined
+  if (!id) return
+  void fetchActivity(id)
+    .then((item) => {
+      notice.value = item.notice
+    })
+    .catch(() => {
+      notice.value = ''
+    })
 })
 
 const goBack = () => {
@@ -30,9 +39,9 @@ const goBack = () => {
     />
 
     <div class="page-body">
-      <section v-if="activity" class="card notice-card">
+      <section v-if="notice" class="card notice-card">
         <h2 class="ab-title heading">本活动提示</h2>
-        <p class="body">{{ activity.notice }}</p>
+        <p class="body">{{ notice }}</p>
       </section>
 
       <section

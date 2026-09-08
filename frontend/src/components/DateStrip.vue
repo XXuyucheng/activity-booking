@@ -3,11 +3,11 @@ import {
   isSessionFull,
   sessionBooked,
   sessionCapacity,
-  type ActivitySession,
-} from '../data/mock-activities'
+  type DateSession,
+} from '../lib/schedules'
 
 defineProps<{
-  sessions: ActivitySession[]
+  sessions: DateSession[]
   modelValue: string
 }>()
 
@@ -15,12 +15,12 @@ const emit = defineEmits<{
   'update:modelValue': [date: string]
 }>()
 
-const remaining = (item: ActivitySession) =>
+const remaining = (item: DateSession) =>
   sessionCapacity(item) - sessionBooked(item)
 
-const isFull = (item: ActivitySession) => isSessionFull(item)
+const isFull = (item: DateSession) => isSessionFull(item)
 
-const label = (item: ActivitySession) => {
+const label = (item: DateSession) => {
   if (isSessionFull(item)) return '已满'
   return `余 ${remaining(item)}`
 }
@@ -46,7 +46,6 @@ const onPick = (date: string) => {
         'chip--active': item.date === modelValue,
         'chip--full': isFull(item),
       }"
-      role="listitem"
       @click="onPick(item.date)"
     >
       <span class="chip-week">{{ item.weekday }}</span>

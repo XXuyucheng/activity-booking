@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.booking import Booking
+from app.models.schedule import Schedule
 
 
 class BookingRepository:
@@ -31,3 +33,20 @@ class BookingRepository:
     def has_for_activity(self, activity_id: uuid.UUID) -> bool:
         stmt = select(Booking.id).where(Booking.activity_id == activity_id).limit(1)
         return self._db.scalar(stmt) is not None
+
+    def list_pending_starting_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> list[Booking]:
+        stmt = (
+            select(Booking)
+            .join(Schedule, Booking.schedule_id == Schedule.id)
+            .where(
+                Booking.status == "pending",
+                Schedule.start_time > window_start,
+                Schedule.start_time <= window_end,
+            )
+            .order_by(Schedule.start_time)
+        )
+        return list(self._db.scalars(stmt))

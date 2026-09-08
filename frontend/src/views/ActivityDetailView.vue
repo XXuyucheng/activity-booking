@@ -6,27 +6,55 @@ import DateStrip from '../components/DateStrip.vue'
 import BookingFormDialog, {
   type BookingPayload,
 } from '../components/BookingFormDialog.vue'
-import { saveBooking } from '../data/bookings'
+import { createBooking } from '../api/bookings'
+import { fetchActivity, type ActivityDetailResponse } from '../api/catalog'
+import { ApiError, redirectToLogin } from '../api/http'
+import { getMockExtrasByName } from '../data/mock-activities'
+import { coverUrl } from '../lib/cover'
 import {
-  getActivityById,
-  isSlotFull,
+  groupSchedules,
   isSessionFull,
+  isSlotFull,
   slotRemaining,
-  type ActivitySession,
-  type ActivitySlot,
-} from '../data/mock-activities'
+  type DateSession,
+  type ScheduleSlot,
+} from '../lib/schedules'
 
 const route = useRoute()
 const router = useRouter()
 
-const activity = computed(() => getActivityById(String(route.params.id)))
+const activity = ref<ActivityDetailResponse | null>(null)
+const missing = ref(false)
+const loading = ref(true)
 const selectedDate = ref('')
 const selectedTime = ref('')
+const showBooking = ref(false)
+const submitting = ref(false)
+
+const extras = computed(() =>
+  activity.value ? getMockExtrasByName(activity.value.name) : undefined,
+)
+const cover = computed(() =>
+  activity.value ? coverUrl(activity.value.cover) : '',
+)
+const images = computed(() => extras.value?.images ?? [cover.value].filter(Boolean))
+const intro = computed(
+  () => extras.value?.intro ?? activity.value?.description ?? '',
+)
+const sessions = computed(() => {
+  if (!activity.value) return []
+  const now = Date.now()
+  const upcoming = activity.value.schedules.filter(
+    (item) => new Date(item.start_time).getTime() > now,
+  )
+  return groupSchedules(upcoming)
+})
+const price = computed(() => Number(activity.value?.price ?? 0))
+const childPrice = computed(() => Number(activity.value?.child_price ?? 0))
 
 const selectedSession = computed(
   () =>
-    activity.value?.sessions.find((item) => item.date === selectedDate.value) ??
-    null,
+    sessions.value.find((item) => item.date === selectedDate.value) ?? null,
 )
 
 const selectedSlot = computed(
@@ -43,17 +71,41 @@ const selectedLabel = computed(() => {
   return slot ? `${formatSession(session)} · ${slot.time}` : formatSession(session)
 })
 
-const pickDefaultSlot = (session: ActivitySession | null) => {
+const pickDefaultSlot = (session: DateSession | null) => {
   if (!session) return ''
   const open = session.slots.find((slot) => !isSlotFull(slot))
   return (open ?? session.slots[0])?.time ?? ''
 }
 
+const load = async () => {
+  missing.value = false
+  loading.value = true
+  try {
+    activity.value = await fetchActivity(String(route.params.id))
+  } catch (error) {
+    activity.value = null
+    missing.value = true
+    if (error instanceof ApiError && error.status !== 404) {
+      showToast('活动加载失败')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
 watch(
-  activity,
-  (item) => {
-    const open = item?.sessions.find((session) => !isSessionFull(session))
-    selectedDate.value = (open ?? item?.sessions[0])?.date ?? ''
+  () => route.params.id,
+  () => {
+    void load()
+  },
+  { immediate: true },
+)
+
+watch(
+  sessions,
+  (list) => {
+    const open = list.find((session) => !isSessionFull(session))
+    selectedDate.value = (open ?? list[0])?.date ?? ''
   },
   { immediate: true },
 )
@@ -66,12 +118,12 @@ watch(
   { immediate: true },
 )
 
-const formatSession = (session: ActivitySession) => {
+const formatSession = (session: DateSession) => {
   const [, month, day] = session.date.split('-')
   return `${Number(month)}月${Number(day)}日 ${session.weekday}`
 }
 
-const slotLabel = (slot: ActivitySlot) =>
+const slotLabel = (slot: ScheduleSlot) =>
   isSlotFull(slot) ? '已满' : `余 ${slotRemaining(slot)}`
 
 const goBack = () => {
@@ -82,11 +134,9 @@ const goBack = () => {
   void router.push({ name: 'home' })
 }
 
-const showBooking = ref(false)
-
 const remainingCount = computed(() => {
   const slot = selectedSlot.value
-  return slot ? Math.max(slotRemaining(slot), 1) : 1
+  return slot ? Math.max(slotRemaining(slot), 0) : 0
 })
 
 const onBook = () => {
@@ -107,39 +157,61 @@ const onBook = () => {
   showBooking.value = true
 }
 
-const onBookingSubmit = (payload: BookingPayload) => {
-  const item = activity.value
-  if (!item) return
-  saveBooking({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    activityId: item.id,
-    title: item.title,
-    sessionLabel: selectedLabel.value,
-    name: payload.name,
-    count: payload.count,
-    childCount: payload.childCount,
-    phone: payload.phone,
-    remark: payload.remark,
-    totalPrice: payload.totalPrice,
-    status: 'pending',
-    createdAt: Date.now(),
-  })
-  showConfirmDialog({
-    className: 'ab-dialog',
-    title: '预约成功',
-    message: '已收到你的预约，我们会尽快确认',
-    confirmButtonText: '查看我的预约',
-    cancelButtonText: '继续逛逛',
-  })
-    .then(() => {
-      void router.push({ name: 'bookings' })
+const onBookingSubmit = async (payload: BookingPayload) => {
+  const slot = selectedSlot.value
+  if (!slot) return
+  submitting.value = true
+  try {
+    await createBooking({
+      schedule_id: slot.scheduleId,
+      contact_name: payload.name,
+      contact_phone: payload.phone,
+      adult_count: payload.count,
+      child_count: payload.childCount,
+      remark: payload.remark,
     })
-    .catch(() => {})
+    showBooking.value = false
+    try {
+      await showConfirmDialog({
+        className: 'ab-dialog',
+        title: '预约成功',
+        message: '已收到你的预约，我们会尽快确认',
+        confirmButtonText: '查看我的预约',
+        cancelButtonText: '继续逛逛',
+      })
+      void router.push({ name: 'bookings' })
+    } catch {
+      await load()
+    }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirectToLogin()
+      return
+    }
+    if (error instanceof ApiError && error.status === 409) {
+      showToast('名额不足')
+      await load()
+      return
+    }
+    showToast(error instanceof Error ? error.message : '预约失败')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
 <template>
-  <div v-if="!activity" class="ab-page missing">
+  <div v-if="loading" class="ab-page missing">
+    <van-nav-bar
+      title="活动详情"
+      left-arrow
+      safe-area-inset-top
+      @click-left="goBack"
+    />
+    <p class="missing-copy">加载中…</p>
+  </div>
+
+  <div v-else-if="missing" class="ab-page missing">
     <van-nav-bar
       title="活动详情"
       left-arrow
@@ -149,11 +221,11 @@ const onBookingSubmit = (payload: BookingPayload) => {
     <p class="missing-copy">活动不存在或已下架</p>
   </div>
 
-  <div v-else class="page">
+  <div v-else-if="activity" class="page">
     <div class="hero">
-      <van-swipe class="swipe" :loop="activity.images.length > 1">
-        <van-swipe-item v-for="(src, index) in activity.images" :key="index">
-          <img class="swipe-img" :src="src" :alt="activity.title" />
+      <van-swipe class="swipe" :loop="images.length > 1">
+        <van-swipe-item v-for="(src, index) in images" :key="index">
+          <img class="swipe-img" :src="src" :alt="activity.name" />
         </van-swipe-item>
         <template #indicator="{ active, total }">
           <div class="indicator">{{ active + 1 }}/{{ total }}</div>
@@ -161,7 +233,7 @@ const onBookingSubmit = (payload: BookingPayload) => {
       </van-swipe>
       <div class="hero-nav">
         <van-nav-bar
-          :title="activity.title"
+          :title="activity.name"
           left-arrow
           safe-area-inset-top
           :border="false"
@@ -171,15 +243,15 @@ const onBookingSubmit = (payload: BookingPayload) => {
     </div>
 
     <div class="body">
-      <h1 class="ab-title title">{{ activity.title }}</h1>
+      <h1 class="ab-title title">{{ activity.name }}</h1>
       <p class="price">
         <span class="price-item">¥{{ activity.price }}<small>/成人</small></span>
-        <span class="price-item">¥{{ activity.childPrice }}<small>/儿童</small></span>
+        <span class="price-item">¥{{ activity.child_price }}<small>/儿童</small></span>
       </p>
-      <p class="intro">{{ activity.intro }}</p>
-      <div class="tags">
+      <p class="intro">{{ intro }}</p>
+      <div v-if="extras?.tags.length" class="tags">
         <van-tag
-          v-for="tag in activity.tags"
+          v-for="tag in extras.tags"
           :key="tag"
           plain
           type="primary"
@@ -188,18 +260,17 @@ const onBookingSubmit = (payload: BookingPayload) => {
         </van-tag>
       </div>
       <h2 class="ab-title dates-title">选择场次</h2>
-      <DateStrip v-model="selectedDate" :sessions="activity.sessions" />
+      <DateStrip v-model="selectedDate" :sessions="sessions" />
       <div v-if="selectedSession" class="slots" role="list">
         <button
           v-for="slot in selectedSession.slots"
-          :key="slot.time"
+          :key="slot.scheduleId"
           type="button"
           class="slot"
           :class="{
             'slot--active': slot.time === selectedTime,
             'slot--full': isSlotFull(slot),
           }"
-          role="listitem"
           @click="selectedTime = slot.time"
         >
           <span class="slot-time">{{ slot.time }}</span>
@@ -209,18 +280,21 @@ const onBookingSubmit = (payload: BookingPayload) => {
 
       <section class="detail">
         <h2 class="ab-title detail-title">活动详情</h2>
-        <ul class="highlights">
-          <li v-for="item in activity.highlights" :key="item">{{ item }}</li>
+        <ul v-if="extras?.highlights.length" class="highlights">
+          <li v-for="item in extras.highlights" :key="item">{{ item }}</li>
         </ul>
-        <div
-          v-for="section in activity.detail"
-          :key="section.heading"
-          class="detail-section"
-        >
-          <h3 class="detail-heading">{{ section.heading }}</h3>
-          <p class="detail-body">{{ section.body }}</p>
-        </div>
-        <img class="detail-img" :src="activity.cover" :alt="activity.title" />
+        <template v-if="extras">
+          <div
+            v-for="section in extras.detail"
+            :key="section.heading"
+            class="detail-section"
+          >
+            <h3 class="detail-heading">{{ section.heading }}</h3>
+            <p class="detail-body">{{ section.body }}</p>
+          </div>
+        </template>
+        <p v-else class="detail-body">{{ activity.description }}</p>
+        <img class="detail-img" :src="cover" :alt="activity.name" />
       </section>
     </div>
 
@@ -238,10 +312,11 @@ const onBookingSubmit = (payload: BookingPayload) => {
       v-model:show="showBooking"
       :session-label="selectedLabel"
       :max-count="remainingCount"
-      :price="activity.price"
-      :child-price="activity.childPrice"
+      :price="price"
+      :child-price="childPrice"
       :notice="activity.notice"
       :activity-id="activity.id"
+      :submitting="submitting"
       @submit="onBookingSubmit"
     />
   </div>

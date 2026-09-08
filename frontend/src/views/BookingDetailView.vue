@@ -1,36 +1,54 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import {
-  getBookingById,
-  updateBookingStatus,
-  type BookingStatus,
-} from '../data/bookings'
+  cancelBooking,
+  fetchBooking,
+  type BookingResponse,
+} from '../api/bookings'
+import { ApiError, redirectToLogin } from '../api/http'
+import { formatClockRange, formatDateTime } from '../lib/schedules'
 
 const route = useRoute()
 const router = useRouter()
+const booking = ref<BookingResponse | null>(null)
+const missing = ref(false)
+const cancelling = ref(false)
 
-const booking = computed(() => getBookingById(String(route.params.id)))
-
-const statusLabel: Record<BookingStatus, string> = {
+const statusLabel: Record<string, string> = {
   pending: '已预约待建联',
   contacted: '已建联',
   expired: '失效',
 }
 
-const statusType: Record<BookingStatus, 'primary' | 'success' | 'default'> = {
+const statusType: Record<string, 'primary' | 'success' | 'default'> = {
   pending: 'primary',
   contacted: 'success',
   expired: 'default',
 }
 
-const formatTime = (ts: number) => {
-  if (!ts) return '—'
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+const load = async () => {
+  missing.value = false
+  try {
+    booking.value = await fetchBooking(String(route.params.id))
+  } catch (error) {
+    booking.value = null
+    if (error instanceof ApiError && error.status === 401) {
+      redirectToLogin()
+      return
+    }
+    missing.value = true
+  }
 }
+
+watch(
+  () => route.params.id,
+  () => {
+    void load()
+  },
+  { immediate: true },
+)
 
 const goBack = () => {
   if (window.history.state?.back) {
@@ -50,10 +68,27 @@ const onCancel = () => {
     confirmButtonText: '确认取消',
     cancelButtonText: '再想想',
   })
-    .then(() => {
-      updateBookingStatus(item.id, 'expired')
-      showToast('已取消')
-      void router.replace({ name: 'bookings' })
+    .then(async () => {
+      cancelling.value = true
+      try {
+        await cancelBooking(item.id)
+        showToast('已取消')
+        void router.replace({ name: 'bookings' })
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          redirectToLogin()
+          return
+        }
+        const message =
+          error instanceof ApiError && error.message === 'too late to cancel'
+            ? '开始前 24 小时内不可取消'
+            : error instanceof Error
+              ? error.message
+              : '取消失败'
+        showToast(message)
+      } finally {
+        cancelling.value = false
+      }
     })
     .catch(() => {})
 }
@@ -68,36 +103,38 @@ const onCancel = () => {
       @click-left="goBack"
     />
 
-    <div v-if="!booking" class="page-body">
+    <div v-if="missing" class="page-body">
       <p class="missing">预约不存在</p>
     </div>
 
-    <div v-else class="page-body">
+    <div v-else-if="booking" class="page-body">
       <section class="card">
         <div class="head">
-          <h1 class="ab-title title">{{ booking.title }}</h1>
-          <van-tag :type="statusType[booking.status]">
-            {{ statusLabel[booking.status] }}
+          <h1 class="ab-title title">{{ booking.activity_name }}</h1>
+          <van-tag :type="statusType[booking.status] ?? 'default'">
+            {{ statusLabel[booking.status] ?? booking.status }}
           </van-tag>
         </div>
-        <p class="session">{{ booking.sessionLabel }}</p>
+        <p class="session">
+          {{ formatClockRange(booking.start_time, booking.end_time) }}
+        </p>
         <dl class="rows">
           <div class="row">
             <dt>姓名</dt>
-            <dd>{{ booking.name }}</dd>
+            <dd>{{ booking.contact_name }}</dd>
           </div>
           <div class="row">
             <dt>人数</dt>
             <dd>
-              成人 {{ booking.count }}
-              <template v-if="booking.childCount">
-                · 儿童 {{ booking.childCount }}
+              成人 {{ booking.adult_count }}
+              <template v-if="booking.child_count">
+                · 儿童 {{ booking.child_count }}
               </template>
             </dd>
           </div>
           <div class="row">
             <dt>手机号</dt>
-            <dd>{{ booking.phone }}</dd>
+            <dd>{{ booking.contact_phone }}</dd>
           </div>
           <div v-if="booking.remark" class="row">
             <dt>备注</dt>
@@ -105,16 +142,17 @@ const onCancel = () => {
           </div>
           <div class="row">
             <dt>提交时间</dt>
-            <dd>{{ formatTime(booking.createdAt) }}</dd>
+            <dd>{{ formatDateTime(booking.created_at) }}</dd>
           </div>
         </dl>
-        <p class="total">合计 <span>¥{{ booking.totalPrice }}</span></p>
+        <p class="total">合计 <span>¥{{ booking.total_price }}</span></p>
       </section>
 
       <van-button
         v-if="booking.status === 'pending'"
         class="cancel"
         block
+        :loading="cancelling"
         @click="onCancel"
       >
         取消预约
