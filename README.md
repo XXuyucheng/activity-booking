@@ -4,7 +4,8 @@
 
 ## 技术栈
 
-- 前端：Vue 3 + Vite + TypeScript + Vant 4
+- 前端：Vue 3 + Vite + TypeScript + Vant 4（游客 H5）
+- 员工后台：Vue 3 + Vite + TypeScript + Element Plus
 - 后端：FastAPI（Python 3.12）
 - 数据库：PostgreSQL 16
 - 本地与生产编排：Docker Compose
@@ -14,14 +15,15 @@
 
 ```text
 activity-booking/                # 本地开发总入口
-├── frontend/                    # 前端（Vue 3 + Vite + TS + Vant）
+├── frontend/                    # 游客 H5（Vue 3 + Vite + TS + Vant）
 │   ├── playground/              # Design System playground
 │   └── src/
 │       ├── assets/              # 静态资源
-│       ├── data/                # mock 数据（联调前）
+│       ├── data/                # mock 数据（营地介绍图集等 v1.1）
 │       ├── components/          # 组件
 │       ├── views/               # 页面视图
 │       └── styles/              # Design tokens + Vant 主题 + reset
+├── admin/                       # 员工后台（Vue 3 + Vite + TS + Element Plus）
 ├── backend/                     # 后端（FastAPI）
 │   ├── app/
 │   │   ├── main.py              # 创建 App、注册 router / middleware / exception / lifespan
@@ -38,13 +40,13 @@ activity-booking/                # 本地开发总入口
 │   ├── scripts/                 # 本地种子数据（不走 Alembic）
 │   ├── Dockerfile               # FastAPI 镜像（第 17 步）
 │   └── 后端/                    # Python 3.12 虚拟环境（不进 Git）
-├── compose.yaml                 # postgres + backend；前端仍本机 Vite
-├── backup/                      # 数据备份目录（第 22 步再加脚本；dump 文件不进 Git）
+├── compose.yaml                 # postgres + backend；H5 与员工后台仍本机 Vite
+├── backup/                      # 数据备份目录（第 23 步再加脚本；dump 文件不进 Git）
 ├── .env.example                 # 复制为 .env 后填写
 └── README.md
 ```
 
-`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；H5 仍本机 Vite，`/api` 代理到 8000。
+`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；H5 仍本机 Vite（5173），员工后台本机 Vite（5174），`/api` 都代理到 8000。
 
 ## 架构
 
@@ -54,7 +56,9 @@ activity-booking/                # 本地开发总入口
 flowchart LR
   subgraph local [LocalNow]
     Browser[Browser] --> Vite[Vite_5173]
+    Browser --> Admin[Admin_5174]
     Vite --> Api[Compose_backend_8000]
+    Admin --> Api
     Api --> Pg[Compose_postgres_5433]
   end
   subgraph later [Later]
@@ -88,15 +92,16 @@ Compose 与 PostgreSQL 前置到 Vue 之前，先稳住本地基础设施。
 15. [x] 微信通知 Integration
 16. [x] 前端去掉 localStorage，前后端联调
 17. [x] Backend 加入 Compose
-18. [ ] 多营地 URL
-19. [ ] Nginx
-20. [ ] 腾讯云 ECS
-21. [ ] 生产 Compose 部署
-22. [ ] 数据库自动备份
+18. [x] 员工后台（登录 + 建联 + 改价/名额）
+19. [ ] 多营地 URL
+20. [ ] Nginx
+21. [ ] 腾讯云 ECS
+22. [ ] 生产 Compose 部署
+23. [ ] 数据库自动备份
 
-**当前状态：** 第 1–6、8–17 步已完成。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；前端仍本机 `npm run dev`。
+**当前状态：** 第 1–6、8–18 步已完成。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、取消预约，以及改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；H5 与后台仍本机 `npm run dev`。
 
-**下一步：** 第 18 步多营地 URL。
+**下一步：** 第 19 步多营地 URL。
 
 ## 后端架构
 
@@ -114,7 +119,7 @@ Compose 与 PostgreSQL 前置到 Vue 之前，先稳住本地基础设施。
 | Integration | `app/integrations/wechat/` | 授权 URL、code → openid、模板通知 Client | 创建 User、写 Booking |
 | Core | `app/core/` | 配置、异常、中间件挂载 | 业务 |
 
-登录编排：`AuthRouter` → `AuthService` → `WechatOAuthClient` + `UserService` + `SessionService`。通知编排：`BookingService`（库存 `commit` 之后）→ `NotificationService` → `WechatNotifyClient`。`BookingService` 不 import 微信 Client。通知失败只打日志，不回滚预约。
+登录编排：`AuthRouter` → `AuthService` → `WechatOAuthClient` + `UserService` + `SessionService`。员工登录：`AdminAuthRouter` → `StaffAuthService`（账号密码 + `ab_admin_session`），不走微信、不复用游客 `User`。通知编排：`BookingService`（库存 `commit` 之后）→ `NotificationService` → `WechatNotifyClient`。`BookingService` 不 import 微信 Client。通知失败只打日志，不回滚预约。建联（`pending` → `contacted`）不发微信、不改库存。
 
 数据库结构用 SQLAlchemy Model + Alembic Migration 管理。任何结构变化必须产生 migration。禁止在生产库手改表，也禁止在 route 里 `CREATE TABLE`。
 
@@ -215,7 +220,19 @@ Auth（已实现）：
 - `GET /api/bookings`、`GET /api/bookings/:id` 我的预约
 - `POST /api/bookings/:id/cancel` pending → expired（24 小时规则在 Service）
 
-`/health` 无鉴权。业务 API 前缀 `/api`。本地 Vite 把 `/api` 代理到 `http://127.0.0.1:8000`，H5 与 Cookie 同域（`127.0.0.1:5173`）。Mock 登录须从 5173 打开 `/api/auth/wechat/start`，不要直接打 8000。
+员工后台（已实现，须 `ab_admin_session`；游客 Cookie 无效。不走微信）：
+
+- `POST /api/admin/login` 账号密码，Set-Cookie
+- `POST /api/admin/logout`
+- `GET /api/admin/me` 员工与绑定营地（不含密码）
+- `GET /api/admin/bookings?status=` 当前营地预约列表
+- `POST /api/admin/bookings/:id/contact` pending → contacted（不改库存、不发微信）
+- `POST /api/admin/bookings/:id/cancel` pending/contacted → expired（退库存、不卡 24 小时；`commit` 后发取消通知）
+- `GET /api/admin/activities` 本营地活动 + 全部排期 + 每场未取消预约
+- `POST /api/admin/activities/:id` 改成人/儿童价（旧单 `total_price` 不变）
+- `POST /api/admin/schedules/:id` 改 `capacity`（不得小于已订）或 `status`（`open`/`closed`）
+
+`/health` 无鉴权。业务 API 前缀 `/api`。本地 Vite 把 `/api` 代理到 `http://127.0.0.1:8000`。H5 Cookie 写在 `127.0.0.1:5173`，后台 Cookie 写在 `127.0.0.1:5174`，名称分别为 `ab_session` 与 `ab_admin_session`。Mock 游客登录须从 5173 打开 `/api/auth/wechat/start`，不要直接打 8000。
 
 ## 本地启动
 
@@ -278,10 +295,13 @@ curl -s http://127.0.0.1:8000/health
 
 ```bash
 docker compose exec backend python scripts/seed_catalog.py
+docker compose exec backend python scripts/seed_staff.py
 docker compose exec backend python scripts/send_reminders.py
 ```
 
 会写入已发布营地 `luhe`（麓禾村）和一条游客不可见的 `hidden-draft`。可重复执行。若该活动已有预约，seed **不会**删除排期，以免破坏库存。
+
+`seed_staff.py` 按 `.env` 的 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 写入绑定 `luhe` 的员工账号（密码哈希）。缺密码则退出。可重复执行（会更新密码）。无公开注册。
 
 未填写微信 AppID/Secret 时，可用 mock 登录。H5 联调请从 **5173** 访问 `/api/auth/wechat/start`（经 Vite 代理），这样 Session Cookie 写在前端源。`GET /api/auth/me` 带 Cookie 应返回 `logged_in: true` 且 JSON 无 `openid`。
 
@@ -321,6 +341,25 @@ cd frontend
 npm run build
 ```
 
+### 员工后台
+
+须先 `docker compose up -d` 并 `seed_staff.py`。后台不进 Compose。
+
+```bash
+cd admin
+npm install
+npm run dev
+```
+
+打开 `http://127.0.0.1:5174`。用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。401 跳 `/login`，不走微信。可看本营地预约（场次 + 下单时间）、建联、取消预约；「活动排期」里改价、改名额、关闭/重开场次。不做新建活动与图集。`.env` 里密码若含 `#` 请加引号，改完 `.env` 后需 `docker compose up -d --force-recreate backend` 再 `seed_staff.py`。
+
+生产构建：
+
+```bash
+cd admin
+npm run build
+```
+
 ## 环境变量
 
 | 变量 | 说明 | 默认 |
@@ -345,11 +384,15 @@ npm run build
 | `SESSION_COOKIE_SECURE` | Cookie `Secure`（本地 http 为 false） | `false` |
 | `SESSION_TTL_SECONDS` | Session 有效期（秒） | `604800`（7 天） |
 | `H5_ORIGIN` | 登录成功 302 目标；CORS 允许源；模板消息跳转前缀 | `http://127.0.0.1:5173` |
+| `ADMIN_ORIGIN` | 员工后台源（CORS） | `http://127.0.0.1:5174` |
+| `ADMIN_SESSION_COOKIE_NAME` | 员工 Session Cookie 名 | `ab_admin_session` |
+| `ADMIN_USERNAME` | `seed_staff.py` 员工用户名 | 无 |
+| `ADMIN_PASSWORD` | `seed_staff.py` 员工密码（不进 Git） | 无 |
 
 不要把 `.env` 提交进 Git。备份 dump（`backup/*.sql`、`backup/*.dump`）同样被忽略。
 
 ## 样式系统
 
-默认主题是新中式户外森系，定义在 `frontend/src/styles/tokens.css`，并经 `vant-theme.css` 接到 Vant。页面和业务样式使用语义变量（`--color-pine`、`--space-md`），不要写死灰蓝色。多营地换肤（第 18 步）覆盖这些变量即可。
+默认主题是新中式户外森系，定义在 `frontend/src/styles/tokens.css`，并经 `vant-theme.css` 接到 Vant。页面和业务样式使用语义变量（`--color-pine`、`--space-md`），不要写死灰蓝色。多营地换肤（第 19 步）覆盖这些变量即可。
 
 本地预览：`cd frontend && npm run dev`，打开 `/playground/`。

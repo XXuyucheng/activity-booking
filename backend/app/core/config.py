@@ -34,6 +34,8 @@ class Settings:
     session_cookie_secure: bool
     session_ttl_seconds: int
     h5_origin: str
+    admin_origin: str
+    admin_session_cookie_name: str
 
     @property
     def wechat_oauth_mock(self) -> bool:
@@ -78,6 +80,9 @@ def get_settings() -> Settings:
         session_cookie_secure=secure,
         session_ttl_seconds=ttl,
         h5_origin=_env("H5_ORIGIN") or "http://127.0.0.1:5173",
+        admin_origin=_env("ADMIN_ORIGIN") or "http://127.0.0.1:5174",
+        admin_session_cookie_name=_env("ADMIN_SESSION_COOKIE_NAME")
+        or "ab_admin_session",
     )
 
 

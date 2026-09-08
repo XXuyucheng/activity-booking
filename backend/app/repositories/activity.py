@@ -22,3 +22,11 @@ class ActivityRepository:
             .order_by(Activity.created_at)
         )
         return list(self._db.scalars(stmt))
+
+    def list_by_camp_id(self, camp_id: uuid.UUID) -> list[Activity]:
+        stmt = (
+            select(Activity)
+            .where(Activity.camp_id == camp_id)
+            .order_by(Activity.created_at)
+        )
+        return list(self._db.scalars(stmt))

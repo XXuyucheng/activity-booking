@@ -30,9 +30,36 @@ class BookingRepository:
         )
         return list(self._db.scalars(stmt))
 
+    def list_by_camp_id(
+        self,
+        camp_id: uuid.UUID,
+        status: str | None = None,
+    ) -> list[Booking]:
+        stmt = select(Booking).where(Booking.camp_id == camp_id)
+        if status is not None:
+            stmt = stmt.where(Booking.status == status)
+        stmt = stmt.order_by(Booking.created_at.desc())
+        return list(self._db.scalars(stmt))
+
     def has_for_activity(self, activity_id: uuid.UUID) -> bool:
         stmt = select(Booking.id).where(Booking.activity_id == activity_id).limit(1)
         return self._db.scalar(stmt) is not None
+
+    def list_active_by_schedule_ids(
+        self,
+        schedule_ids: list[uuid.UUID],
+    ) -> list[Booking]:
+        if not schedule_ids:
+            return []
+        stmt = (
+            select(Booking)
+            .where(
+                Booking.schedule_id.in_(schedule_ids),
+                Booking.status != "expired",
+            )
+            .order_by(Booking.created_at)
+        )
+        return list(self._db.scalars(stmt))
 
     def list_pending_starting_between(
         self,

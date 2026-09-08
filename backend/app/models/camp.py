@@ -12,6 +12,7 @@ from app.models.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.activity import Activity
     from app.models.booking import Booking
+    from app.models.staff import StaffUser
 
 
 class Camp(TimestampMixin, Base):
@@ -31,3 +32,4 @@ class Camp(TimestampMixin, Base):
 
     activities: Mapped[list[Activity]] = relationship(back_populates="camp")
     bookings: Mapped[list[Booking]] = relationship(back_populates="camp")
+    staff_users: Mapped[list[StaffUser]] = relationship(back_populates="camp")

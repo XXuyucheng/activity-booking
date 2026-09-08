@@ -23,6 +23,7 @@ from app.services.notification import NotificationService
 logger = logging.getLogger(__name__)
 
 CANCEL_LEAD = timedelta(hours=24)
+ADMIN_BOOKING_STATUSES = frozenset({"pending", "contacted", "expired"})
 
 
 def _aware(value: datetime) -> datetime:
@@ -79,9 +80,33 @@ class BookingService:
         bookings = self._bookings.list_by_user_id(user.id)
         return [self._response_for(booking) for booking in bookings]
 
+    def list_for_camp(
+        self,
+        camp_id: uuid.UUID,
+        status: str | None = None,
+    ) -> list[BookingResponse]:
+        if status is not None and status not in ADMIN_BOOKING_STATUSES:
+            raise ApiError("invalid status")
+        bookings = self._bookings.list_by_camp_id(camp_id, status)
+        return [self._response_for(booking) for booking in bookings]
+
+    def mark_contacted(self, camp_id: uuid.UUID, booking_id: str) -> BookingResponse:
+        booking = self._in_camp(camp_id, booking_id)
+        if booking.status != "pending":
+            raise ApiError("booking cannot be contacted")
+        booking.status = "contacted"
+        self._db.commit()
+        return self._response_for(booking)
+
     def get_mine(self, user: User, booking_id: str) -> BookingResponse:
         booking = self._owned(user, booking_id)
         return self._response_for(booking)
+
+    def cancel_for_camp(self, camp_id: uuid.UUID, booking_id: str) -> BookingResponse:
+        booking = self._in_camp(camp_id, booking_id)
+        if booking.status not in {"pending", "contacted"}:
+            raise ApiError("booking cannot be cancelled")
+        return self._expire(booking)
 
     def cancel(self, user: User, booking_id: str) -> BookingResponse:
         booking = self._owned(user, booking_id)
@@ -93,6 +118,12 @@ class BookingService:
         now = datetime.now(UTC)
         if now + CANCEL_LEAD > _aware(schedule.start_time):
             raise ApiError("too late to cancel")
+        return self._expire(booking)
+
+    def _expire(self, booking: Booking) -> BookingResponse:
+        schedule = self._schedules.get_by_id_for_update(booking.schedule_id)
+        if schedule is None:
+            raise NotFoundError("schedule not found")
         heads = booking.adult_count + booking.child_count
         booking.status = "expired"
         self._schedules.add_booked(schedule, -heads)
@@ -118,12 +149,24 @@ class BookingService:
             )
 
     def _owned(self, user: User, booking_id: str) -> Booking:
+        booking = self._get(booking_id)
+        if booking.user_id != user.id:
+            raise NotFoundError("booking not found")
+        return booking
+
+    def _in_camp(self, camp_id: uuid.UUID, booking_id: str) -> Booking:
+        booking = self._get(booking_id)
+        if booking.camp_id != camp_id:
+            raise NotFoundError("booking not found")
+        return booking
+
+    def _get(self, booking_id: str) -> Booking:
         try:
             uid = uuid.UUID(booking_id)
         except ValueError as exc:
             raise NotFoundError("booking not found") from exc
         booking = self._bookings.get_by_id(uid)
-        if booking is None or booking.user_id != user.id:
+        if booking is None:
             raise NotFoundError("booking not found")
         return booking
 

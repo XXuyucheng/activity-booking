@@ -1,4 +1,4 @@
-"""HMAC state 与随机 session id。"""
+"""HMAC state、随机 session id、员工密码哈希。"""
 
 from __future__ import annotations
 
@@ -7,11 +7,26 @@ import hmac
 import secrets
 import time
 
+import bcrypt
+
 _STATE_MAX_AGE = 10 * 60
+_DUMMY_HASH = bcrypt.hashpw(b"dummy-password", bcrypt.gensalt())
 
 
 def new_session_id() -> str:
     return secrets.token_urlsafe(32)
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("ascii")
+
+
+def verify_password(password: str, password_hash: str | None) -> bool:
+    digest = password_hash.encode("utf-8") if password_hash else _DUMMY_HASH
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), digest)
+    except ValueError:
+        return False
 
 
 def sign_oauth_state(secret: str) -> str:

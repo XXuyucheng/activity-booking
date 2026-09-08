@@ -7,6 +7,7 @@ from app.models.camp import Camp
 from app.models.notification import NotificationLog
 from app.models.schedule import Schedule
 from app.models.session import Session
+from app.models.staff import StaffSession, StaffUser
 from app.models.user import User
 
 __all__ = [
@@ -17,5 +18,7 @@ __all__ = [
     "NotificationLog",
     "Schedule",
     "Session",
+    "StaffSession",
+    "StaffUser",
     "User",
 ]

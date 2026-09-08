@@ -20,6 +20,14 @@ class ScheduleRepository:
         )
         return list(self._db.scalars(stmt))
 
+    def list_by_activity_id(self, activity_id: uuid.UUID) -> list[Schedule]:
+        stmt = (
+            select(Schedule)
+            .where(Schedule.activity_id == activity_id)
+            .order_by(Schedule.start_time)
+        )
+        return list(self._db.scalars(stmt))
+
     def get_by_id(self, schedule_id: uuid.UUID) -> Schedule | None:
         return self._db.get(Schedule, schedule_id)
 

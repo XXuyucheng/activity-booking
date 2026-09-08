@@ -8,9 +8,10 @@ from app.core.config import get_settings
 
 def register_middleware(app: FastAPI) -> None:
     settings = get_settings()
+    origins = list(dict.fromkeys([settings.h5_origin, settings.admin_origin]))
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.h5_origin],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],

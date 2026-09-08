@@ -6,6 +6,7 @@ from app.repositories.camp import CampRepository
 from app.repositories.notification import NotificationRepository
 from app.repositories.schedule import ScheduleRepository
 from app.repositories.session import SessionRepository
+from app.repositories.staff import StaffSessionRepository, StaffUserRepository
 from app.repositories.user import UserRepository
 
 __all__ = [
@@ -15,5 +16,7 @@ __all__ = [
     "NotificationRepository",
     "ScheduleRepository",
     "SessionRepository",
+    "StaffSessionRepository",
+    "StaffUserRepository",
     "UserRepository",
 ]

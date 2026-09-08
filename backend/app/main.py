@@ -3,7 +3,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routers import activities, auth, bookings, camps, health
+from app.api.routers import (
+    activities,
+    admin_activities,
+    admin_auth,
+    admin_bookings,
+    admin_schedules,
+    auth,
+    bookings,
+    camps,
+    health,
+)
 from app.core.db import dispose_engine, get_engine
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import register_middleware
@@ -23,6 +33,10 @@ def create_app() -> FastAPI:
     register_exception_handlers(application)
     application.include_router(health.router)
     application.include_router(auth.router)
+    application.include_router(admin_auth.router)
+    application.include_router(admin_bookings.router)
+    application.include_router(admin_activities.router)
+    application.include_router(admin_schedules.router)
     application.include_router(camps.router)
     application.include_router(activities.router)
     application.include_router(bookings.router)
