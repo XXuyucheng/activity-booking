@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useCampRouter } from '../lib/campRoute'
+import { PAYMENT_HINT } from '../data/booking-copy'
 
 export type BookingPayload = {
   name: string
@@ -21,7 +22,7 @@ const props = defineProps<{
   submitting?: boolean
 }>()
 
-const router = useRouter()
+const { push } = useCampRouter()
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
@@ -84,7 +85,7 @@ const close = () => {
 
 const openRules = () => {
   close()
-  void router.push({ name: 'rules', query: { activityId: props.activityId } })
+  void push('rules', {}, { activityId: props.activityId })
 }
 
 const onSubmit = () => {
@@ -166,9 +167,15 @@ const onSubmit = () => {
         />
       </van-cell-group>
       <div class="submit">
-        <p class="total">
-          合计 <span class="total-price">¥{{ total }}</span>
-        </p>
+        <div class="totals">
+          <p class="total">
+            合计 <span class="total-price">¥{{ total }}</span>
+          </p>
+          <p class="total">
+            待付款 <span class="total-price">¥{{ total }}</span>
+          </p>
+        </div>
+        <p class="pay-hint">{{ PAYMENT_HINT }}</p>
         <van-button
           type="primary"
           block
@@ -262,12 +269,20 @@ const onSubmit = () => {
   padding: var(--space-md);
 }
 
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-xs);
+}
+
 .total {
   display: flex;
   align-items: baseline;
-  justify-content: flex-end;
   gap: var(--space-xs);
-  margin: 0 0 var(--space-sm);
+  margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-ink-muted);
 }
@@ -276,5 +291,12 @@ const onSubmit = () => {
   font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--color-cinnabar);
+}
+
+.pay-hint {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+  color: var(--color-ink-muted);
 }
 </style>

@@ -1,0 +1,20 @@
+.git
+.cursor
+.env
+**/.env
+**/.DS_Store
+**/node_modules
+backend/后端
+backend/.venv
+**/.venv
+**/__pycache__
+backup
+**/*.pyc
+**/.tmp
+
+# 默认忽略 dist；允许打进 Nginx 镜像的两份构建产物
+**/dist
+!frontend/dist
+!frontend/dist/**
+!admin/dist
+!admin/dist/**

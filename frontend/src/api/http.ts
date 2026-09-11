@@ -1,4 +1,4 @@
-import { LOGIN_PATH } from '../constants'
+import { campSlugFromPath } from '../lib/camp'
 
 export class ApiError extends Error {
   readonly status: number
@@ -11,7 +11,8 @@ export class ApiError extends Error {
 }
 
 export const redirectToLogin = () => {
-  window.location.assign(LOGIN_PATH)
+  const slug = campSlugFromPath(window.location.pathname)
+  window.location.assign(`/api/auth/wechat/start?camp=${encodeURIComponent(slug)}`)
 }
 
 const parseDetail = (body: unknown): string => {

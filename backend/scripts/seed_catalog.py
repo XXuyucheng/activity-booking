@@ -25,6 +25,18 @@ from app.models.schedule import Schedule
 TZ = ZoneInfo("Asia/Shanghai")
 
 LUHE_INTRO = "麓禾村 莫干山麓的心安之地 等你来 慢慢生活"
+QINGXI_INTRO = "清溪营地 竹林与溪水之间的慢周末"
+
+QINGXI_ACTIVITY = {
+    "name": "竹林徒步+溪边野餐",
+    "description": "沿溪走进竹林，中午在溪边野餐。适合亲子半日慢走。",
+    "cover": "activity-cover.png",
+    "duration": 180,
+    "price": Decimal("88.00"),
+    "child_price": Decimal("48.00"),
+    "notice": "3–12 岁享儿童价；请穿防滑鞋，雨天改期。",
+    "kind": "qingxi",
+}
 
 ACTIVITIES: list[dict] = [
     {
@@ -206,6 +218,21 @@ def _replace_schedules(session: Session, activity: Activity, kind: str) -> None:
                 )
         return
 
+    if kind == "qingxi":
+        days = [saturday, sunday]
+        times = [(9, 0, 12, 0), (13, 30, 16, 30)]
+        for day in days:
+            for sh, sm, eh, em in times:
+                _add_slot(
+                    session,
+                    activity.id,
+                    _at(day, sh, sm),
+                    _at(day, eh, em),
+                    12,
+                    2,
+                )
+        return
+
     days = [tuesday, tuesday + timedelta(days=1), next_monday + timedelta(days=1), next_monday + timedelta(days=2)]
     times = [(15, 0, 16, 30), (17, 0, 18, 30)]
     for index, day in enumerate(days):
@@ -242,6 +269,16 @@ def seed(session: Session) -> None:
         if _has_bookings(session, activity.id):
             continue
         _replace_schedules(session, activity, spec["kind"])
+    qingxi = _upsert_camp(
+        session,
+        slug="qingxi",
+        name="清溪营地",
+        description=QINGXI_INTRO,
+        status="published",
+    )
+    qingxi_activity = _upsert_activity(session, qingxi, QINGXI_ACTIVITY)
+    if not _has_bookings(session, qingxi_activity.id):
+        _replace_schedules(session, qingxi_activity, QINGXI_ACTIVITY["kind"])
     session.commit()
 
 
@@ -256,7 +293,7 @@ def main() -> None:
         raise
     finally:
         session.close()
-    print("seeded camp slug=luhe (published) and hidden-draft (draft)")
+    print("seeded camps luhe, qingxi (published) and hidden-draft (draft)")
 
 
 if __name__ == "__main__":

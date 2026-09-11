@@ -9,6 +9,8 @@ export type AdminScheduleBooking = {
   status: string
   start_time: string
   end_time: string
+  total_price: string
+  unpaid_amount: string
 }
 
 export type AdminSchedule = {
@@ -20,6 +22,7 @@ export type AdminSchedule = {
   remaining: number
   status: string
   bookings: AdminScheduleBooking[]
+  revenue: string
 }
 
 export type AdminActivity = {

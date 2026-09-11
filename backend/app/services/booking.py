@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.camp_slug import parse_camp_slug
 from app.core.exceptions import ApiError, ConflictError, NotFoundError
 from app.models.activity import Activity
 from app.models.booking import Booking
@@ -16,7 +17,7 @@ from app.repositories.activity import ActivityRepository
 from app.repositories.booking import BookingRepository
 from app.repositories.camp import CampRepository
 from app.repositories.schedule import ScheduleRepository
-from app.schemas.booking import BookingResponse, CreateBookingRequest
+from app.schemas.booking import BookingResponse, CreateBookingRequest, UpdateUnpaidAmountRequest
 from app.services.camp import PUBLISHED
 from app.services.notification import NotificationService
 
@@ -64,6 +65,7 @@ class BookingService:
             child_count=payload.child_count,
             remark=payload.remark,
             total_price=total,
+            unpaid_amount=total,
             status="pending",
         )
         self._schedules.add_booked(schedule, heads)
@@ -76,8 +78,17 @@ class BookingService:
         self._notify_after_commit(booking.id, created=True)
         return self._to_response(booking, activity, schedule)
 
-    def list_mine(self, user: User) -> list[BookingResponse]:
-        bookings = self._bookings.list_by_user_id(user.id)
+    def list_mine(self, user: User, camp_slug: str | None = None) -> list[BookingResponse]:
+        camp_id = None
+        if camp_slug:
+            slug = parse_camp_slug(camp_slug)
+            if slug is None:
+                raise NotFoundError("camp not found")
+            camp = self._camps.get_by_slug(slug)
+            if camp is None or camp.status != PUBLISHED:
+                raise NotFoundError("camp not found")
+            camp_id = camp.id
+        bookings = self._bookings.list_by_user_id(user.id, camp_id)
         return [self._response_for(booking) for booking in bookings]
 
     def list_for_camp(
@@ -95,6 +106,21 @@ class BookingService:
         if booking.status != "pending":
             raise ApiError("booking cannot be contacted")
         booking.status = "contacted"
+        self._db.commit()
+        return self._response_for(booking)
+
+    def update_unpaid(
+        self,
+        camp_id: uuid.UUID,
+        booking_id: str,
+        payload: UpdateUnpaidAmountRequest,
+    ) -> BookingResponse:
+        booking = self._in_camp(camp_id, booking_id)
+        if booking.status not in {"pending", "contacted"}:
+            raise ApiError("booking unpaid cannot be updated")
+        if payload.unpaid_amount > booking.total_price:
+            raise ApiError("unpaid exceeds total")
+        booking.unpaid_amount = payload.unpaid_amount
         self._db.commit()
         return self._response_for(booking)
 
@@ -197,8 +223,10 @@ class BookingService:
         activity: Activity,
         schedule: Schedule,
     ) -> BookingResponse:
+        camp = self._camps.get_by_id(booking.camp_id)
         return BookingResponse(
             id=booking.id,
+            camp_slug=camp.slug if camp is not None else "",
             activity_id=activity.id,
             activity_name=activity.name,
             schedule_id=schedule.id,
@@ -210,6 +238,7 @@ class BookingService:
             child_count=booking.child_count,
             remark=booking.remark,
             total_price=booking.total_price,
+            unpaid_amount=booking.unpaid_amount,
             status=booking.status,
             created_at=booking.created_at,
         )

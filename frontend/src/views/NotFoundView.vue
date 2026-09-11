@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { DEFAULT_CAMP_SLUG } from '../lib/camp'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
 const goHome = () => {
-  void router.push({ name: 'home' })
+  const slug = document.documentElement.dataset.camp || DEFAULT_CAMP_SLUG
+  void router.push({ name: 'home', params: { campSlug: slug } })
 }
 </script>
 

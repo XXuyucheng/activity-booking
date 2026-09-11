@@ -22,10 +22,11 @@ def create_booking(
 
 @router.get("", response_model=list[BookingResponse])
 def list_bookings(
+    camp: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[BookingResponse]:
-    return BookingService(db).list_mine(user)
+    return BookingService(db).list_mine(user, camp)
 
 
 @router.get("/{booking_id}", response_model=BookingResponse)

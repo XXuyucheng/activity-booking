@@ -22,12 +22,15 @@ class BookingRepository:
     def get_by_id(self, booking_id: uuid.UUID) -> Booking | None:
         return self._db.get(Booking, booking_id)
 
-    def list_by_user_id(self, user_id: uuid.UUID) -> list[Booking]:
-        stmt = (
-            select(Booking)
-            .where(Booking.user_id == user_id)
-            .order_by(Booking.created_at.desc())
-        )
+    def list_by_user_id(
+        self,
+        user_id: uuid.UUID,
+        camp_id: uuid.UUID | None = None,
+    ) -> list[Booking]:
+        stmt = select(Booking).where(Booking.user_id == user_id)
+        if camp_id is not None:
+            stmt = stmt.where(Booking.camp_id == camp_id)
+        stmt = stmt.order_by(Booking.created_at.desc())
         return list(self._db.scalars(stmt))
 
     def list_by_camp_id(

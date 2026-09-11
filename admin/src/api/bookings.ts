@@ -15,6 +15,7 @@ export type AdminBooking = {
   child_count: number
   remark: string
   total_price: string
+  unpaid_amount: string
   status: BookingStatus
   created_at: string
 }
@@ -27,6 +28,12 @@ export const listBookings = (status?: BookingStatus | '') => {
 export const markContacted = (bookingId: string) =>
   api<AdminBooking>(`/api/admin/bookings/${bookingId}/contact`, {
     method: 'POST',
+  })
+
+export const updateUnpaidAmount = (bookingId: string, unpaidAmount: string) =>
+  api<AdminBooking>(`/api/admin/bookings/${bookingId}/unpaid`, {
+    method: 'POST',
+    body: JSON.stringify({ unpaid_amount: unpaidAmount }),
   })
 
 export const cancelBooking = (bookingId: string) =>

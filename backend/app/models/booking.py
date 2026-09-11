@@ -25,6 +25,8 @@ class Booking(TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("adult_count >= 1", name="adult_min"),
         CheckConstraint("child_count >= 0", name="child_nonneg"),
+        CheckConstraint("unpaid_amount >= 0", name="unpaid_nonneg"),
+        CheckConstraint("unpaid_amount <= total_price", name="unpaid_lte_total"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -58,6 +60,7 @@ class Booking(TimestampMixin, Base):
     child_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     remark: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    unpaid_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
 
     user: Mapped[User] = relationship(back_populates="bookings")

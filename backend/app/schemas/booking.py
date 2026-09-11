@@ -48,6 +48,7 @@ class BookingResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: uuid.UUID
+    camp_slug: str
     activity_id: uuid.UUID
     activity_name: str
     schedule_id: uuid.UUID
@@ -59,5 +60,12 @@ class BookingResponse(BaseModel):
     child_count: int
     remark: str
     total_price: Decimal
+    unpaid_amount: Decimal
     status: str
     created_at: datetime
+
+
+class UpdateUnpaidAmountRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    unpaid_amount: Decimal = Field(ge=0, max_digits=10, decimal_places=2)

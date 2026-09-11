@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { getPackById } from '../data/mock-activities'
+import { useCampRouter } from '../lib/campRoute'
 
 const route = useRoute()
-const router = useRouter()
+const { push, router } = useCampRouter()
 
 const pack = computed(() => getPackById(String(route.params.id)))
 
@@ -13,15 +14,15 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'camp' })
+  void push('camp')
 }
 
 const goCamp = () => {
-  void router.push({ name: 'camp' })
+  void push('camp')
 }
 
 const goHome = () => {
-  void router.push({ name: 'home' })
+  void push('home')
 }
 </script>
 

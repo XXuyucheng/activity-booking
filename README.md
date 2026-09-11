@@ -40,17 +40,20 @@ activity-booking/                # 本地开发总入口
 │   ├── scripts/                 # 本地种子数据（不走 Alembic）
 │   ├── Dockerfile               # FastAPI 镜像（第 17 步）
 │   └── 后端/                    # Python 3.12 虚拟环境（不进 Git）
-├── compose.yaml                 # postgres + backend；H5 与员工后台仍本机 Vite
+├── deploy/                      # Nginx 配置与前后端静态镜像（第 20 步）
+│   ├── nginx/default.conf
+│   └── web/Dockerfile
+├── compose.yaml                 # postgres + backend；` --profile web` 再起 Nginx
 ├── backup/                      # 数据备份目录（第 23 步再加脚本；dump 文件不进 Git）
 ├── .env.example                 # 复制为 .env 后填写
 └── README.md
 ```
 
-`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；H5 仍本机 Vite（5173），员工后台本机 Vite（5174），`/api` 都代理到 8000。
+`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；日常开发 H5 仍本机 Vite（5173），员工后台本机 Vite（5174），`/api` 都代理到 8000。生产形态用 `docker compose --profile web`：Nginx 托管构建后的静态资源并反代 FastAPI。
 
 ## 架构
 
-本地可同时跑 Vite 开发服务器、FastAPI 与 PostgreSQL。Nginx 按路线图逐步补上。
+本地可同时跑 Vite 开发服务器、FastAPI 与 PostgreSQL。Nginx 用 Compose profile，不替代日常 Vite。
 
 ```mermaid
 flowchart LR
@@ -61,15 +64,16 @@ flowchart LR
     Admin --> Api
     Api --> Pg[Compose_postgres_5433]
   end
-  subgraph later [Later]
-    Wx[WeChatH5] --> Nginx
-    Nginx --> Fe[VueStatic]
-    Nginx --> Be[FastAPI]
-    Be --> PgProd[Postgres]
+  subgraph later [NginxLocal]
+    Browser2[Browser] --> Nginx
+    Nginx --> H5static[H5_dist]
+    Nginx --> Adminstatic[Admin_dist]
+    Nginx --> Be[Compose_backend]
+    Be --> Pg
   end
 ```
 
-生产目标（第 19–21 步）：Nginx 托管前端静态资源并反代 FastAPI；Compose 再加入 frontend；多营地域名 + HTTPS。
+生产目标（第 21–22 步）：把同一套 Compose（含 Nginx）放到腾讯云 ECS；域名 + HTTPS + 微信网页授权。多营地目前仍是路径前缀 `/{campSlug}`，不按营地域名拆 Cookie。
 
 ## 开发计划
 
@@ -93,15 +97,17 @@ Compose 与 PostgreSQL 前置到 Vue 之前，先稳住本地基础设施。
 16. [x] 前端去掉 localStorage，前后端联调
 17. [x] Backend 加入 Compose
 18. [x] 员工后台（登录 + 建联 + 改价/名额）
-19. [ ] 多营地 URL
-20. [ ] Nginx
+19. [x] 多营地 URL
+20. [x] Nginx
 21. [ ] 腾讯云 ECS
 22. [ ] 生产 Compose 部署
 23. [ ] 数据库自动备份
 
-**当前状态：** 第 1–6、8–18 步已完成。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、取消预约，以及改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；H5 与后台仍本机 `npm run dev`。
+第 21 步进行中：2C4G Ubuntu 24.04 已 SSH；Docker CE + Compose 已装；`qucamp.cn` / `www` / `admin` A 记录已指到该机；ICP 备案审核中。未完成：备案通过、安全组 80/443、时区、生产 Nginx/HTTPS（第 22 步）。
 
-**下一步：** 第 19 步多营地 URL。
+**当前状态：** 第 1–6、8–20 步已完成；第 21 步进行中（如上）。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地用路径前缀区分：`/{campSlug}`、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings` 等；`/` 与旧路径（`/activity/:id`、`/camp`、`/bookings`…）redirect 到 `/luhe/...`。未发布或未知 slug 为 H5 404。登录 `GET /api/auth/wechat/start?camp=`，callback 回到 `{H5_ORIGIN}/{slug}`；「我的预约」只列当前 URL 营地；模板跳转带 `/{slug}/bookings/{id}`。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、改待付款、取消预约，以及改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。H5 预约列表/详情在合计旁展示待付款（入库字段）；「付款前请联系工作人员」为前端固定文案，不进库。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；日常 H5 与后台仍本机 `npm run dev`（5173 / 5174）。可选 `docker compose --profile web` 用 Nginx 托管构建后的 H5（8080）与员工后台（8081）并反代 `/api`；8080 是 `dist` 快照，改源码不会自动更新。改表走 Alembic 迁移并重启 backend，不是重启 Postgres。HTTPS、公网域名、微信真授权等备案通过后随第 21–22 步上 ECS。
+
+**下一步：** 等 ICP 备案通过 → 收尾第 21 步（安全组 80/443）→ 第 22 步生产 Compose + HTTPS。备案完成前不要对外开 80/443、不要在云上部署站点；可继续本机优化前端与字段。
 
 ## 后端架构
 
@@ -148,7 +154,7 @@ erDiagram
 | Camp | `id`，`name`，`slug`，`description`，`status`，时间戳 | location / story / 设施 / 套票 / 须知标为 v1.1，不挡预约主链 |
 | Activity | `id`，`camp_id`，`name`，`description`，`cover`，`duration`，`status`，以及 `price` / `child_price` / `notice` | 图集、标签、详情段落可后续拆表 |
 | Schedule | `id`，`activity_id`，`start_time`，`end_time`，`capacity`，`booked_count`，`status` | 对应「某日 + 某时段」；库存以排期行为准 |
-| Booking | `id`，`user_id`，`camp_id`，`activity_id`，`schedule_id`，`contact_name`，`contact_phone`（快照必填），`adult_count` / `child_count`，`remark`，`total_price`（下单快照），`status`，时间戳 | 对齐表单；不要只留一个 `participant_count`；不要只依赖 User 的姓名手机 |
+| Booking | `id`，`user_id`，`camp_id`，`activity_id`，`schedule_id`，`contact_name`，`contact_phone`（快照必填），`adult_count` / `child_count`，`remark`，`total_price`（下单快照），`unpaid_amount`（下单=合计，员工可改、不超过合计），`status`，时间戳 | 对齐表单；不要只留一个 `participant_count`；不要只依赖 User 的姓名手机 |
 | NotificationLog | `id`，`user_id`，`booking_id`，`type`（`success` / `cancel` / `reminder`），`status`（`skipped` / `sent` / `failed`），`sent_at`（仅 `sent`），`error_message` | 已实现 |
 | Session | `id`（随机 session id），`user_id`，`expires_at` | v1 存 PostgreSQL，不引入 Redis；Cookie 只带 session id |
 
@@ -183,7 +189,7 @@ H5 → GET /api/auth/wechat/start
 - 若换票返回 `is_snapshotuser=1`（快照页虚拟号），拒绝当作正式用户。
 - Secret 不进 Git。
 
-**Mock 与真授权：** `WECHAT_APP_ID` 与 `WECHAT_APP_SECRET` **都非空** 时走真 `snsapi_base`；任一为空则走 mock（不请求微信）。Mock 下 `GET /api/auth/wechat/start` 会签发 `state` 并转到本服务 `/api/auth/wechat/callback?code=mock&state=...`，用固定 openid `mock-local-openid` 查/建 User、写 `sessions`、Set-Cookie 后 302 到 `H5_ORIGIN`。补齐 `.env` 中的 AppID、AppSecret、`WECHAT_OAUTH_REDIRECT_URI`（及 `WECHAT_OAUTH_STATE_SECRET`）后无需改代码即可真授权。网页授权 access_token 不落库、不回传前端；`/api/auth/me` 只返回 `id` 与 `logged_in`，不含 openid。未登录时 `/me` 返回 `{ "id": null, "logged_in": false }`（200，不强制 401）。
+**Mock 与真授权：** `WECHAT_APP_ID` 与 `WECHAT_APP_SECRET` **都非空** 时走真 `snsapi_base`；任一为空则走 mock（不请求微信）。Mock 下 `GET /api/auth/wechat/start?camp=` 会签发带营地 slug 的 `state` 并转到本服务 `/api/auth/wechat/callback?code=mock&state=...`，用固定 openid `mock-local-openid` 查/建 User、写 `sessions`、Set-Cookie 后 302 到 `{H5_ORIGIN}/{slug}`（`camp` 缺省 `luhe`；须为已发布营地否则 404）。补齐 `.env` 中的 AppID、AppSecret、`WECHAT_OAUTH_REDIRECT_URI`（及 `WECHAT_OAUTH_STATE_SECRET`）后无需改代码即可真授权。网页授权 access_token 不落库、不回传前端；`/api/auth/me` 只返回 `id` 与 `logged_in`，不含 openid。未登录时 `/me` 返回 `{ "id": null, "logged_in": false }`（200，不强制 401）。
 
 ### 微信模板通知
 
@@ -197,14 +203,14 @@ H5 → GET /api/auth/wechat/start
 - 取消：`cancel` 在 `expired` `commit` 成功之后发 `cancel`
 - 提醒：不挂请求路径。`python scripts/send_reminders.py`（可 crontab）扫描 `pending` 且 `start_time` 在未来 24 小时内、尚未 `sent`/`skipped` reminder 的预约
 
-模板 `data` 目前用通用 `keyword1`–`keyword4`（活动名、场次时间、人数、合计价），跳转 URL 为 `H5_ORIGIN` + `/bookings/{id}`。**落地后须按公众平台实际字段名改映射。** `error_message` 截断不超过 1024 字。
+模板 `data` 目前用通用 `keyword1`–`keyword4`（活动名、场次时间、人数、合计价），跳转 URL 为 `H5_ORIGIN/{camp.slug}/bookings/{id}`。**落地后须按公众平台实际字段名改映射。** `error_message` 截断不超过 1024 字。
 
 ### API 规划
 
 Auth（已实现）：
 
-- `GET /api/auth/wechat/start`
-- `GET /api/auth/wechat/callback`
+- `GET /api/auth/wechat/start?camp=`（OAuth `state` 带 slug；缺省 `luhe`）
+- `GET /api/auth/wechat/callback`（302 `{H5_ORIGIN}/{slug}`）
 - `POST /api/auth/logout`
 - `GET /api/auth/me`（user id / 是否登录，**不含 openid**）
 
@@ -212,12 +218,12 @@ Auth（已实现）：
 
 - `GET /api/camps/:slug` 营地介绍（仅 `published`）
 - `GET /api/camps/:slug/activities` 列表（活动 `status` 由排期推导 `open` | `full`）
-- `GET /api/activities/:id` 详情 + 排期库存（含 `remaining`）
+- `GET /api/activities/:id` 详情 + 排期库存（含 `remaining`、`camp_slug`）
 
 预约（已实现，须有效 Session Cookie；未登录 401。合计价以后端为准；`adult_count + child_count` 占库存。开始前 24 小时内不可取消。创建/取消 `commit` 后写通知日志，失败不影响预约）：
 
 - `POST /api/bookings` 创建（校验余位、写快照、占库存）
-- `GET /api/bookings`、`GET /api/bookings/:id` 我的预约
+- `GET /api/bookings?camp=`、`GET /api/bookings/:id` 我的预约（列表可按营地过滤；响应含 `camp_slug`）
 - `POST /api/bookings/:id/cancel` pending → expired（24 小时规则在 Service）
 
 员工后台（已实现，须 `ab_admin_session`；游客 Cookie 无效。不走微信）：
@@ -227,12 +233,13 @@ Auth（已实现）：
 - `GET /api/admin/me` 员工与绑定营地（不含密码）
 - `GET /api/admin/bookings?status=` 当前营地预约列表
 - `POST /api/admin/bookings/:id/contact` pending → contacted（不改库存、不发微信）
+- `POST /api/admin/bookings/:id/unpaid` 改 `unpaid_amount`（pending/contacted；0～合计；不改 `total_price`、不改库存、不发微信）
 - `POST /api/admin/bookings/:id/cancel` pending/contacted → expired（退库存、不卡 24 小时；`commit` 后发取消通知）
-- `GET /api/admin/activities` 本营地活动 + 全部排期 + 每场未取消预约
+- `GET /api/admin/activities` 本营地活动 + 全部排期 + 每场未取消预约（含单笔金额与场次实收 `revenue`）
 - `POST /api/admin/activities/:id` 改成人/儿童价（旧单 `total_price` 不变）
 - `POST /api/admin/schedules/:id` 改 `capacity`（不得小于已订）或 `status`（`open`/`closed`）
 
-`/health` 无鉴权。业务 API 前缀 `/api`。本地 Vite 把 `/api` 代理到 `http://127.0.0.1:8000`。H5 Cookie 写在 `127.0.0.1:5173`，后台 Cookie 写在 `127.0.0.1:5174`，名称分别为 `ab_session` 与 `ab_admin_session`。Mock 游客登录须从 5173 打开 `/api/auth/wechat/start`，不要直接打 8000。
+`/health` 无鉴权。业务 API 前缀 `/api`。本地 Vite 把 `/api` 代理到 `http://127.0.0.1:8000`。H5 Cookie 写在 `127.0.0.1:5173`，后台 Cookie 写在 `127.0.0.1:5174`，名称分别为 `ab_session` 与 `ab_admin_session`。Mock 游客登录须从 5173 打开 `/api/auth/wechat/start?camp=`，不要直接打 8000。
 
 ## 本地启动
 
@@ -291,6 +298,29 @@ curl -s http://127.0.0.1:8000/health
 
 应返回 `{"status":"ok"}`。OpenAPI：`http://127.0.0.1:8000/docs`。容器内数据库地址是 `postgres:5432`，会覆盖 `.env` 里指向 `127.0.0.1:5433` 的 `DATABASE_URL`。本机 DBeaver / 本机脚本仍用 `127.0.0.1:5433`。
 
+### Nginx（生产形态，本机预览）
+
+日常开发仍用 Vite，不必开 Nginx。要验证「静态资源 + 反代 /api」（与上 ECS 同一套配置）时，先在本机构建前端（2 核云主机不适合现场 `npm run build`）：
+
+```bash
+sh deploy/web/build-static.sh
+docker compose --profile web up -d --build
+curl -s http://127.0.0.1:8080/health
+curl -sI http://127.0.0.1:8080/luhe
+```
+
+浏览器打开 `http://127.0.0.1:8080/`（会进 `/luhe`）、员工后台 `http://127.0.0.1:8081/`。H5 与 `/api` 同域，Cookie 写在 8080。Playground：`http://127.0.0.1:8080/playground/`。
+
+在 Nginx 入口测登录时，把 `.env` 的 `H5_ORIGIN` 改成 `http://127.0.0.1:8080`、`ADMIN_ORIGIN` 改成 `http://127.0.0.1:8081`，然后 `docker compose up -d --force-recreate backend`。改回 Vite 开发时再设回 5173/5174。本机预览 Nginx 仍不必上云。ECS 已在准备（第 21 步进行中）；备案完成前不要对外开 80/443、不要在云上部署站点。HTTPS、域名、微信回调域名随备案通过后配置。
+
+镜像在本机 `npm run build` 后打进 Nginx 镜像。2 核 4G 的 ECS 跑 postgres + backend + nginx 够用；第 21 步把本机打好的镜像拷上去即可，不要在云主机上编译前端。
+
+只停 Nginx、保留数据库：
+
+```bash
+docker compose --profile web stop nginx
+```
+
 种子与提醒：
 
 ```bash
@@ -299,13 +329,13 @@ docker compose exec backend python scripts/seed_staff.py
 docker compose exec backend python scripts/send_reminders.py
 ```
 
-会写入已发布营地 `luhe`（麓禾村）和一条游客不可见的 `hidden-draft`。可重复执行。若该活动已有预约，seed **不会**删除排期，以免破坏库存。
+会写入已发布营地 `luhe`（麓禾村）、`qingxi`（清溪，1 个活动）和一条游客不可见的 `hidden-draft`。可重复执行。若该活动已有预约，seed **不会**删除排期，以免破坏库存。`seed_staff.py` 仍只绑 `luhe`。
 
 `seed_staff.py` 按 `.env` 的 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 写入绑定 `luhe` 的员工账号（密码哈希）。缺密码则退出。可重复执行（会更新密码）。无公开注册。
 
-未填写微信 AppID/Secret 时，可用 mock 登录。H5 联调请从 **5173** 访问 `/api/auth/wechat/start`（经 Vite 代理），这样 Session Cookie 写在前端源。`GET /api/auth/me` 带 Cookie 应返回 `logged_in: true` 且 JSON 无 `openid`。
+未填写微信 AppID/Secret 时，可用 mock 登录。H5 联调请从 **5173** 访问 `/api/auth/wechat/start?camp=luhe`（或当前营地 slug，经 Vite 代理），这样 Session Cookie 写在前端源。`GET /api/auth/me` 带 Cookie 应返回 `logged_in: true` 且 JSON 无 `openid`。
 
-预约写入须登录。H5 在提交预约或打开「我的预约」遇到 401 时会跳到 mock 登录。未配模板 ID 时下单/取消仍成功，并在 `notification_logs` 写入 `skipped`。前端未进 Compose。
+预约写入须登录。H5 在提交预约或打开「我的预约」遇到 401 时会跳到 mock 登录。未配模板 ID 时下单/取消仍成功，并在 `notification_logs` 写入 `skipped`。日常开发前端不进 Compose；` --profile web` 时 Nginx 镜像内含 H5 与员工后台的构建产物。
 
 本机虚拟环境仅在不经过 Docker 调试时需要：
 
@@ -328,7 +358,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开终端里打印的地址（默认 `http://127.0.0.1:5173`）。Vite 已开启 `host: true`，同一局域网的手机也可访问打印出的 Network 地址。首页与活动详情的价格/排期余位来自 Postgres；「立即预约」走 `POST /api/bookings`（未登录会跳转 mock 登录）。营地介绍的地点/故事/设施/套票，以及活动轮播、标签、分段正文仍是前端 mock（按活动名叠加）。
+浏览器打开终端里打印的地址（默认 `http://127.0.0.1:5173`，会进 `/luhe`）。Vite 已开启 `host: true`，同一局域网的手机也可访问打印出的 Network 地址。游客 URL：`/{campSlug}` 首页、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings`；Playground 仍是 `/playground/`。对比第二座营地用 `/qingxi`。首页与活动详情的价格/排期余位来自 Postgres；「立即预约」走 `POST /api/bookings`（未登录会跳转 `/api/auth/wechat/start?camp=`）。营地介绍的地点/故事/设施/套票，以及活动轮播、标签、分段正文仍是前端 mock（按活动名叠加）。
 
 样式系统 Playground：`http://127.0.0.1:5173/playground/`（色板、字体、间距、圆角、Vant 示例）。
 
@@ -343,7 +373,7 @@ npm run build
 
 ### 员工后台
 
-须先 `docker compose up -d` 并 `seed_staff.py`。后台不进 Compose。
+后台日常不进 Compose；`docker compose --profile web` 时由 Nginx 在 8081 提供构建后的后台。
 
 ```bash
 cd admin
@@ -351,7 +381,7 @@ npm install
 npm run dev
 ```
 
-打开 `http://127.0.0.1:5174`。用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。401 跳 `/login`，不走微信。可看本营地预约（场次 + 下单时间）、建联、取消预约；「活动排期」里改价、改名额、关闭/重开场次。不做新建活动与图集。`.env` 里密码若含 `#` 请加引号，改完 `.env` 后需 `docker compose up -d --force-recreate backend` 再 `seed_staff.py`。
+打开 `http://127.0.0.1:5174`。用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。401 跳 `/login`，不走微信。可看本营地预约（场次 + 下单时间）、建联、改待付款、取消预约；「活动排期」里改价、改名额、关闭/重开场次。不做新建活动与图集。`.env` 里密码若含 `#` 请加引号，改完 `.env` 后需 `docker compose up -d --force-recreate backend` 再 `seed_staff.py`。
 
 生产构建：
 
@@ -383,16 +413,18 @@ npm run build
 | `SESSION_COOKIE_NAME` | Session Cookie 名 | `ab_session` |
 | `SESSION_COOKIE_SECURE` | Cookie `Secure`（本地 http 为 false） | `false` |
 | `SESSION_TTL_SECONDS` | Session 有效期（秒） | `604800`（7 天） |
-| `H5_ORIGIN` | 登录成功 302 目标；CORS 允许源；模板消息跳转前缀 | `http://127.0.0.1:5173` |
-| `ADMIN_ORIGIN` | 员工后台源（CORS） | `http://127.0.0.1:5174` |
+| `H5_ORIGIN` | 登录成功 302 前缀（再拼 `/{slug}`）；CORS 允许源；模板消息跳转前缀 | `http://127.0.0.1:5173`（Nginx 预览改为 `http://127.0.0.1:8080`） |
+| `ADMIN_ORIGIN` | 员工后台源（CORS） | `http://127.0.0.1:5174`（Nginx 预览改为 `http://127.0.0.1:8081`） |
 | `ADMIN_SESSION_COOKIE_NAME` | 员工 Session Cookie 名 | `ab_admin_session` |
 | `ADMIN_USERNAME` | `seed_staff.py` 员工用户名 | 无 |
 | `ADMIN_PASSWORD` | `seed_staff.py` 员工密码（不进 Git） | 无 |
+| `NGINX_H5_PORT` | 本机 Nginx 游客端口（profile web） | `8080` |
+| `NGINX_ADMIN_PORT` | 本机 Nginx 员工后台端口 | `8081` |
 
 不要把 `.env` 提交进 Git。备份 dump（`backup/*.sql`、`backup/*.dump`）同样被忽略。
 
 ## 样式系统
 
-默认主题是新中式户外森系，定义在 `frontend/src/styles/tokens.css`，并经 `vant-theme.css` 接到 Vant。页面和业务样式使用语义变量（`--color-pine`、`--space-md`），不要写死灰蓝色。多营地换肤（第 19 步）覆盖这些变量即可。
+默认主题是新中式户外森系，定义在 `frontend/src/styles/tokens.css`，并经 `vant-theme.css` 接到 Vant。页面和业务样式使用语义变量（`--color-pine`、`--space-md`），不要写死灰蓝色。`luhe` 沿用 `:root`；其它营地点 `html[data-camp="qingxi"]` 覆盖强调色即可。
 
 本地预览：`cd frontend && npm run dev`，打开 `/playground/`。

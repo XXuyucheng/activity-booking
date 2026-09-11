@@ -7,12 +7,14 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app.core.camp_slug import DEFAULT_CAMP_SLUG
 from app.core.config import Settings, get_settings
 from app.integrations.wechat.notify import WechatNotifyClient
 from app.models.booking import Booking
 from app.models.notification import NotificationLog
 from app.repositories.activity import ActivityRepository
 from app.repositories.booking import BookingRepository
+from app.repositories.camp import CampRepository
 from app.repositories.notification import NotificationRepository
 from app.repositories.schedule import ScheduleRepository
 from app.repositories.user import UserRepository
@@ -43,6 +45,7 @@ class NotificationService:
         self._users = UserRepository(db)
         self._activities = ActivityRepository(db)
         self._schedules = ScheduleRepository(db)
+        self._camps = CampRepository(db)
         self._client = WechatNotifyClient(self._settings)
 
     def notify_created(self, booking_id: uuid.UUID) -> None:
@@ -82,13 +85,19 @@ class NotificationService:
                 openid=user.openid,
                 template_id=self._settings.wechat_template_id(kind),
                 data=self._template_data(booking),
-                url=f"{self._settings.h5_origin.rstrip('/')}/bookings/{booking.id}",
+                url=self._booking_url(booking),
             )
         except Exception as exc:
             logger.warning("wechat template %s failed booking=%s", kind, booking_id)
             self._write_log(booking, kind, STATUS_FAILED, _clip_error(str(exc)))
             return
         self._write_log(booking, kind, STATUS_SENT, None, sent=True)
+
+    def _booking_url(self, booking: Booking) -> str:
+        camp = self._camps.get_by_id(booking.camp_id)
+        slug = camp.slug if camp is not None else DEFAULT_CAMP_SLUG
+        origin = self._settings.h5_origin.rstrip("/")
+        return f"{origin}/{slug}/bookings/{booking.id}"
 
     def _template_data(self, booking: Booking) -> dict[str, dict[str, str]]:
         activity = self._activities.get_by_id(booking.activity_id)

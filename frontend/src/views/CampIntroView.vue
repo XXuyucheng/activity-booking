@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { showImagePreview } from 'vant'
 import ActivityCard, {
   type ActivityCardItem,
@@ -10,8 +9,9 @@ import campMap from '../assets/camp-ground.png'
 import { fetchCamp, fetchCampActivities } from '../api/catalog'
 import { camp as campMock, packLabel } from '../data/mock-activities'
 import { coverUrl } from '../lib/cover'
+import { useCampRouter } from '../lib/campRoute'
 
-const router = useRouter()
+const { campSlug, push, router } = useCampRouter()
 const camp = ref({ ...campMock })
 const list = ref<ActivityCardItem[]>([])
 const heroImages = [campPoster]
@@ -23,8 +23,8 @@ const previewMap = () => {
 const load = async () => {
   try {
     const [apiCamp, activities] = await Promise.all([
-      fetchCamp(),
-      fetchCampActivities(),
+      fetchCamp(campSlug.value),
+      fetchCampActivities(campSlug.value),
     ])
     camp.value = {
       ...campMock,
@@ -52,19 +52,19 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'home' })
+  void push('home')
 }
 
 const goHome = () => {
-  void router.push({ name: 'home' })
+  void push('home')
 }
 
 const onSelect = (activity: ActivityCardItem) => {
-  void router.push({ name: 'activity', params: { id: activity.id } })
+  void push('activity', { id: activity.id })
 }
 
 const goPack = (packId: string) => {
-  void router.push({ name: 'pack', params: { id: packId } })
+  void push('pack', { id: packId })
 }
 </script>
 

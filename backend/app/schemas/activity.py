@@ -37,6 +37,7 @@ class ActivityListItem(BaseModel):
 class ActivityDetailResponse(ActivityListItem):
     description: str
     notice: str
+    camp_slug: str
     schedules: list[ScheduleResponse] = Field(default_factory=list)
 
 
@@ -51,10 +52,13 @@ class AdminScheduleBooking(BaseModel):
     status: str
     start_time: datetime
     end_time: datetime
+    total_price: Decimal
+    unpaid_amount: Decimal
 
 
 class AdminScheduleItem(ScheduleResponse):
     bookings: list[AdminScheduleBooking] = Field(default_factory=list)
+    revenue: Decimal = Field(default=Decimal("0.00"))
 
 
 class AdminActivityItem(BaseModel):

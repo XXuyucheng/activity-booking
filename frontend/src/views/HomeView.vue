@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import CampHeader from '../components/CampHeader.vue'
 import ActivityCard, {
   type ActivityCardItem,
@@ -8,8 +7,9 @@ import ActivityCard, {
 import { fetchCamp, fetchCampActivities } from '../api/catalog'
 import { camp as campMock } from '../data/mock-activities'
 import { coverUrl } from '../lib/cover'
+import { useCampRouter } from '../lib/campRoute'
 
-const router = useRouter()
+const { campSlug, push } = useCampRouter()
 const headerCamp = ref({ ...campMock })
 const list = ref<ActivityCardItem[]>([])
 const loading = ref(true)
@@ -20,8 +20,8 @@ const load = async () => {
   error.value = ''
   try {
     const [camp, activities] = await Promise.all([
-      fetchCamp(),
-      fetchCampActivities(),
+      fetchCamp(campSlug.value),
+      fetchCampActivities(campSlug.value),
     ])
     headerCamp.value = {
       ...campMock,
@@ -47,15 +47,15 @@ onMounted(() => {
 })
 
 const onSelect = (activity: ActivityCardItem) => {
-  void router.push({ name: 'activity', params: { id: activity.id } })
+  void push('activity', { id: activity.id })
 }
 
 const goBookings = () => {
-  void router.push({ name: 'bookings' })
+  void push('bookings')
 }
 
 const goCamp = () => {
-  void router.push({ name: 'camp' })
+  void push('camp')
 }
 </script>
 

@@ -1,5 +1,5 @@
 /* Default camp theme: 新中式 + 户外森系.
-   Later (step 13) override these on html[data-camp="..."]. */
+   多营地换肤：在 html[data-camp="..."] 覆盖语义变量。luhe 沿用 :root。 */
 
 :root {
   --color-bg: #f3ede3;
@@ -42,4 +42,11 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html[data-camp='qingxi'] {
+  --color-pine: #3d5a80;
+  --color-pine-deep: #293d56;
+  --color-moss: #5b7c99;
+  --color-cinnabar: #c45c26;
 }

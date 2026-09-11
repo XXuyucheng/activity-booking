@@ -1,4 +1,3 @@
-import { CAMP_SLUG } from '../constants'
 import { api } from './http'
 
 export type CampResponse = {
@@ -32,13 +31,14 @@ export type ScheduleResponse = {
 export type ActivityDetailResponse = ActivityListItem & {
   description: string
   notice: string
+  camp_slug: string
   schedules: ScheduleResponse[]
 }
 
-export const fetchCamp = (slug = CAMP_SLUG) =>
+export const fetchCamp = (slug: string) =>
   api<CampResponse>(`/api/camps/${slug}`)
 
-export const fetchCampActivities = (slug = CAMP_SLUG) =>
+export const fetchCampActivities = (slug: string) =>
   api<ActivityListItem[]>(`/api/camps/${slug}/activities`)
 
 export const fetchActivity = (id: string) =>

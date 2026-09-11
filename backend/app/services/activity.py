@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from decimal import Decimal
 from typing import Literal
 
 from sqlalchemy.orm import Session
@@ -50,6 +51,30 @@ def _schedule_response(schedule: Schedule) -> ScheduleResponse:
     )
 
 
+def _admin_schedule_item(schedule: Schedule, bookings: list) -> AdminScheduleItem:
+    rows = [
+        AdminScheduleBooking(
+            id=booking.id,
+            contact_name=booking.contact_name,
+            contact_phone=booking.contact_phone,
+            adult_count=booking.adult_count,
+            child_count=booking.child_count,
+            status=booking.status,
+            start_time=schedule.start_time,
+            end_time=schedule.end_time,
+            total_price=booking.total_price,
+            unpaid_amount=booking.unpaid_amount,
+        )
+        for booking in bookings
+    ]
+    revenue = sum((row.total_price for row in rows), Decimal("0.00"))
+    return AdminScheduleItem(
+        **_schedule_response(schedule).model_dump(),
+        bookings=rows,
+        revenue=revenue,
+    )
+
+
 class ActivityService:
     def __init__(self, db: Session) -> None:
         self._db = db
@@ -87,6 +112,7 @@ class ActivityService:
             status=item.status,
             description=activity.description,
             notice=activity.notice,
+            camp_slug=camp.slug,
             schedules=[_schedule_response(schedule) for schedule in schedules],
         )
 
@@ -109,22 +135,7 @@ class ActivityService:
                     price=activity.price,
                     child_price=activity.child_price,
                     schedules=[
-                        AdminScheduleItem(
-                            **_schedule_response(schedule).model_dump(),
-                            bookings=[
-                                AdminScheduleBooking(
-                                    id=booking.id,
-                                    contact_name=booking.contact_name,
-                                    contact_phone=booking.contact_phone,
-                                    adult_count=booking.adult_count,
-                                    child_count=booking.child_count,
-                                    status=booking.status,
-                                    start_time=schedule.start_time,
-                                    end_time=schedule.end_time,
-                                )
-                                for booking in by_slot[schedule.id]
-                            ],
-                        )
+                        _admin_schedule_item(schedule, by_slot[schedule.id])
                         for schedule in schedules
                     ],
                 )

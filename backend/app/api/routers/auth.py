@@ -37,8 +37,11 @@ def _clear_session_cookie(response: Response) -> None:
 
 
 @router.get("/wechat/start")
-def wechat_start(db: Session = Depends(get_db)) -> RedirectResponse:
-    location = AuthService(db).start_url()
+def wechat_start(
+    camp: str | None = None,
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    location = AuthService(db).start_url(camp)
     return RedirectResponse(url=location, status_code=302)
 
 
@@ -51,7 +54,8 @@ def wechat_callback(
         request.query_params.get("code"),
         request.query_params.get("state"),
     )
-    response = RedirectResponse(url=get_settings().h5_origin, status_code=302)
+    origin = get_settings().h5_origin.rstrip("/")
+    response = RedirectResponse(url=f"{origin}/{result.camp_slug}", status_code=302)
     _set_session_cookie(response, result.session.id)
     return response
 

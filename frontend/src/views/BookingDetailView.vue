@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import {
   cancelBooking,
@@ -9,9 +9,11 @@ import {
 } from '../api/bookings'
 import { ApiError, redirectToLogin } from '../api/http'
 import { formatClockRange, formatDateTime } from '../lib/schedules'
+import { useCampRouter } from '../lib/campRoute'
+import { PAYMENT_HINT, isPaidOff } from '../data/booking-copy'
 
 const route = useRoute()
-const router = useRouter()
+const { campSlug, push, replace, router } = useCampRouter()
 const booking = ref<BookingResponse | null>(null)
 const missing = ref(false)
 const cancelling = ref(false)
@@ -31,7 +33,13 @@ const statusType: Record<string, 'primary' | 'success' | 'default'> = {
 const load = async () => {
   missing.value = false
   try {
-    booking.value = await fetchBooking(String(route.params.id))
+    const detail = await fetchBooking(String(route.params.id))
+    if (detail.camp_slug !== campSlug.value) {
+      booking.value = null
+      missing.value = true
+      return
+    }
+    booking.value = detail
   } catch (error) {
     booking.value = null
     if (error instanceof ApiError && error.status === 401) {
@@ -43,7 +51,7 @@ const load = async () => {
 }
 
 watch(
-  () => route.params.id,
+  () => [route.params.id, campSlug.value],
   () => {
     void load()
   },
@@ -55,7 +63,7 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'bookings' })
+  void push('bookings')
 }
 
 const onCancel = () => {
@@ -73,7 +81,7 @@ const onCancel = () => {
       try {
         await cancelBooking(item.id)
         showToast('已取消')
-        void router.replace({ name: 'bookings' })
+        void replace('bookings')
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
           redirectToLogin()
@@ -145,7 +153,14 @@ const onCancel = () => {
             <dd>{{ formatDateTime(booking.created_at) }}</dd>
           </div>
         </dl>
-        <p class="total">合计 <span>¥{{ booking.total_price }}</span></p>
+        <div class="totals">
+          <p class="total">合计 <span>¥{{ booking.total_price }}</span></p>
+          <p class="total">
+            待付款 <span>¥{{ booking.unpaid_amount }}</span>
+            <em v-if="isPaidOff(booking.unpaid_amount)" class="paid-off">已付清</em>
+          </p>
+        </div>
+        <p class="pay-hint">{{ PAYMENT_HINT }}</p>
       </section>
 
       <van-button
@@ -220,18 +235,42 @@ const onCancel = () => {
   color: var(--color-ink);
 }
 
-.total {
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
   margin: 0;
   padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-line);
+}
+
+.total {
+  margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-ink-muted);
-  border-top: 1px solid var(--color-line);
 }
 
 .total span {
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-cinnabar);
+}
+
+.paid-off {
+  margin-left: var(--space-xs);
+  font-size: var(--font-size-sm);
+  font-style: normal;
+  font-weight: 500;
+  color: var(--color-pine);
+}
+
+.pay-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+  color: var(--color-ink-muted);
 }
 
 .cancel {

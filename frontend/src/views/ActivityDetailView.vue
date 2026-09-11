@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import DateStrip from '../components/DateStrip.vue'
 import BookingFormDialog, {
@@ -19,9 +19,10 @@ import {
   type DateSession,
   type ScheduleSlot,
 } from '../lib/schedules'
+import { useCampRouter } from '../lib/campRoute'
 
 const route = useRoute()
-const router = useRouter()
+const { campSlug, push, router } = useCampRouter()
 
 const activity = ref<ActivityDetailResponse | null>(null)
 const missing = ref(false)
@@ -81,7 +82,13 @@ const load = async () => {
   missing.value = false
   loading.value = true
   try {
-    activity.value = await fetchActivity(String(route.params.id))
+    const detail = await fetchActivity(String(route.params.id))
+    if (detail.camp_slug !== campSlug.value) {
+      activity.value = null
+      missing.value = true
+      return
+    }
+    activity.value = detail
   } catch (error) {
     activity.value = null
     missing.value = true
@@ -94,7 +101,7 @@ const load = async () => {
 }
 
 watch(
-  () => route.params.id,
+  () => [route.params.id, campSlug.value],
   () => {
     void load()
   },
@@ -131,7 +138,7 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'home' })
+  void push('home')
 }
 
 const remainingCount = computed(() => {
@@ -179,7 +186,7 @@ const onBookingSubmit = async (payload: BookingPayload) => {
         confirmButtonText: '查看我的预约',
         cancelButtonText: '继续逛逛',
       })
-      void router.push({ name: 'bookings' })
+      void push('bookings')
     } catch {
       await load()
     }

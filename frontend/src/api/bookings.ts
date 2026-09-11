@@ -2,6 +2,7 @@ import { api } from './http'
 
 export type BookingResponse = {
   id: string
+  camp_slug: string
   activity_id: string
   activity_name: string
   schedule_id: string
@@ -13,6 +14,7 @@ export type BookingResponse = {
   child_count: number
   remark: string
   total_price: string
+  unpaid_amount: string
   status: string
   created_at: string
 }
@@ -26,7 +28,8 @@ export type CreateBookingBody = {
   remark: string
 }
 
-export const fetchBookings = () => api<BookingResponse[]>('/api/bookings')
+export const fetchBookings = (camp: string) =>
+  api<BookingResponse[]>(`/api/bookings?camp=${encodeURIComponent(camp)}`)
 
 export const fetchBooking = (id: string) =>
   api<BookingResponse>(`/api/bookings/${id}`)

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import {
   fetchBookings,
   type BookingResponse,
@@ -9,8 +8,10 @@ import { ApiError, redirectToLogin } from '../api/http'
 import { coverUrl } from '../lib/cover'
 import { formatClockRange } from '../lib/schedules'
 import { getMockExtrasByName } from '../data/mock-activities'
+import { PAYMENT_HINT, isPaidOff } from '../data/booking-copy'
+import { useCampRouter } from '../lib/campRoute'
 
-const router = useRouter()
+const { campSlug, push, router } = useCampRouter()
 const list = ref<BookingResponse[]>([])
 const loading = ref(true)
 
@@ -29,7 +30,7 @@ const statusType: Record<string, 'primary' | 'success' | 'default'> = {
 const load = async () => {
   loading.value = true
   try {
-    list.value = await fetchBookings()
+    list.value = await fetchBookings(campSlug.value)
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       redirectToLogin()
@@ -50,15 +51,15 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'home' })
+  void push('home')
 }
 
 const goHome = () => {
-  void router.push({ name: 'home' })
+  void push('home')
 }
 
 const openDetail = (id: string) => {
-  void router.push({ name: 'booking-detail', params: { id } })
+  void push('booking-detail', { id })
 }
 
 const coverOf = (item: BookingResponse) => {
@@ -114,7 +115,16 @@ const sessionOf = (item: BookingResponse) =>
                 · {{ item.contact_phone }}
               </p>
               <p v-if="item.remark" class="card-remark">备注：{{ item.remark }}</p>
-              <p class="card-total">合计 <span>¥{{ item.total_price }}</span></p>
+              <div class="card-totals">
+                <p class="card-total">
+                  合计 <span>¥{{ item.total_price }}</span>
+                </p>
+                <p class="card-total">
+                  待付款 <span>¥{{ item.unpaid_amount }}</span>
+                  <em v-if="isPaidOff(item.unpaid_amount)" class="paid-off">已付清</em>
+                </p>
+              </div>
+              <p class="card-hint">{{ PAYMENT_HINT }}</p>
             </div>
           </article>
         </div>
@@ -205,18 +215,42 @@ const sessionOf = (item: BookingResponse) =>
   color: var(--color-ink-muted);
 }
 
-.card-total {
+.card-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
   margin: var(--space-sm) 0 0;
   padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-line);
+}
+
+.card-total {
+  margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-ink-muted);
-  border-top: 1px solid var(--color-line);
 }
 
 .card-total span {
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-cinnabar);
+}
+
+.paid-off {
+  margin-left: var(--space-xs);
+  font-size: var(--font-size-sm);
+  font-style: normal;
+  font-weight: 500;
+  color: var(--color-pine);
+}
+
+.card-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+  color: var(--color-ink-muted);
 }
 
 .empty {

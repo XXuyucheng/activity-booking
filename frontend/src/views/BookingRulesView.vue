@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { fetchActivity } from '../api/catalog'
 import { bookingRules } from '../data/mock-activities'
+import { useCampRouter } from '../lib/campRoute'
 
 const route = useRoute()
-const router = useRouter()
+const { campSlug, push, router } = useCampRouter()
 const notice = ref('')
 
 onMounted(() => {
@@ -13,7 +14,7 @@ onMounted(() => {
   if (!id) return
   void fetchActivity(id)
     .then((item) => {
-      notice.value = item.notice
+      notice.value = item.camp_slug === campSlug.value ? item.notice : ''
     })
     .catch(() => {
       notice.value = ''
@@ -25,7 +26,7 @@ const goBack = () => {
     router.back()
     return
   }
-  void router.push({ name: 'home' })
+  void push('home')
 }
 </script>
 
