@@ -35,6 +35,11 @@ class ScheduleRepository:
         stmt = select(Schedule).where(Schedule.id == schedule_id).with_for_update()
         return self._db.scalar(stmt)
 
+    def add(self, schedule: Schedule) -> Schedule:
+        self._db.add(schedule)
+        self._db.flush()
+        return schedule
+
     def add_booked(self, schedule: Schedule, delta: int) -> None:
         schedule.booked_count += delta
         if schedule.booked_count < 0:

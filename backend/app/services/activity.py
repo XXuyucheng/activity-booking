@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -20,11 +22,20 @@ from app.schemas.activity import (
     AdminActivityItem,
     AdminScheduleBooking,
     AdminScheduleItem,
+    CreateScheduleRequest,
     ScheduleResponse,
     UpdateActivityPricesRequest,
     UpdateScheduleRequest,
 )
 from app.services.camp import PUBLISHED, CampService
+
+_SH = ZoneInfo("Asia/Shanghai")
+
+
+def _aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=_SH)
+    return value
 
 
 def _remaining(schedule: Schedule) -> int:
@@ -151,6 +162,27 @@ class ActivityService:
         activity = self._activity_in_camp(camp_id, activity_id)
         activity.price = payload.price
         activity.child_price = payload.child_price
+        self._db.commit()
+        return self._admin_item(activity)
+
+    def create_schedule(
+        self,
+        camp_id: uuid.UUID,
+        activity_id: str,
+        payload: CreateScheduleRequest,
+    ) -> AdminActivityItem:
+        activity = self._activity_in_camp(camp_id, activity_id)
+        activity.price = payload.price
+        activity.child_price = payload.child_price
+        schedule = Schedule(
+            activity_id=activity.id,
+            start_time=_aware(payload.start_time),
+            end_time=_aware(payload.end_time),
+            capacity=payload.capacity,
+            booked_count=0,
+            status="open",
+        )
+        self._schedules.add(schedule)
         self._db.commit()
         return self._admin_item(activity)
 

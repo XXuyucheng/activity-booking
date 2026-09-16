@@ -79,6 +79,22 @@ class UpdateActivityPricesRequest(BaseModel):
     child_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
 
 
+class CreateScheduleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start_time: datetime
+    end_time: datetime
+    capacity: int = Field(ge=1)
+    price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    child_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+
+    @model_validator(mode="after")
+    def time_order(self) -> CreateScheduleRequest:
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time")
+        return self
+
+
 class UpdateScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

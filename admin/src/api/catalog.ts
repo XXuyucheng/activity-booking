@@ -50,3 +50,18 @@ export const updateSchedule = (
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+export const createSchedule = (
+  activityId: string,
+  payload: {
+    start_time: string
+    end_time: string
+    capacity: number
+    price: string
+    child_price: string
+  },
+) =>
+  api<AdminActivity>(`/api/admin/activities/${activityId}/schedules`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })

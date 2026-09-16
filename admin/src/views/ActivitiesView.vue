@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  createSchedule,
   listAdminActivities,
   updateActivityPrices,
   updateSchedule,
@@ -21,6 +22,13 @@ const selectedScheduleId = ref('')
 const expandedActivityIds = ref<string[]>([])
 const drafts = reactive<Record<string, { price: number; child_price: number }>>({})
 const capacityDrafts = reactive<Record<string, number>>({})
+const creating = ref(false)
+const createActivityId = ref('')
+const createStart = ref<Date | null>(null)
+const createEnd = ref<Date | null>(null)
+const createCapacity = ref(10)
+const createPrice = ref(0)
+const createChildPrice = ref(0)
 
 const statusLabel: Record<string, string> = {
   pending: '待建联',
@@ -79,9 +87,20 @@ const applyDrafts = (list: AdminActivity[]) => {
   }
 }
 
-const replaceActivity = (updated: AdminActivity) => {
-  const activityId = selectedActivityId.value
-  const scheduleId = selectedScheduleId.value
+const fillCreatePrices = (activityId: string) => {
+  const draft = drafts[activityId]
+  if (draft) {
+    createPrice.value = draft.price
+    createChildPrice.value = draft.child_price
+    return
+  }
+  const activity = activities.value.find((item) => item.id === activityId)
+  if (!activity) return
+  createPrice.value = Number(activity.price)
+  createChildPrice.value = Number(activity.child_price)
+}
+
+const replaceActivity = (updated: AdminActivity, scheduleId?: string) => {
   activities.value = activities.value.map((item) => (item.id === updated.id ? updated : item))
   drafts[updated.id] = {
     price: Number(updated.price),
@@ -90,7 +109,10 @@ const replaceActivity = (updated: AdminActivity) => {
   for (const schedule of updated.schedules) {
     capacityDrafts[schedule.id] = schedule.capacity
   }
-  keepSelection(activityId, scheduleId)
+  keepSelection(
+    scheduleId ? updated.id : selectedActivityId.value,
+    scheduleId ?? selectedScheduleId.value,
+  )
 }
 
 const load = async () => {
@@ -99,6 +121,10 @@ const load = async () => {
     applyDrafts(await listAdminActivities())
     keepSelection(selectedActivityId.value, selectedScheduleId.value)
     ensureExpanded(selectedActivityId.value)
+    if (!createActivityId.value) {
+      createActivityId.value = selectedActivityId.value
+      fillCreatePrices(createActivityId.value)
+    }
   } catch (error) {
     ElMessage.error(error instanceof ApiError ? error.message : '加载失败')
   } finally {
@@ -112,6 +138,51 @@ watch(selectedActivityId, (activityId, previous) => {
   const activity = activities.value.find((item) => item.id === activityId)
   selectedScheduleId.value = activity?.schedules[0]?.id ?? ''
 })
+
+watch(createActivityId, (activityId) => {
+  if (activityId) fillCreatePrices(activityId)
+})
+
+const onCreateSchedule = async () => {
+  if (!createActivityId.value || !createStart.value || !createEnd.value) {
+    ElMessage.error('请填写活动、开始和结束时间')
+    return
+  }
+  if (createEnd.value <= createStart.value) {
+    ElMessage.error('结束时间须晚于开始时间')
+    return
+  }
+  if (createCapacity.value < 1) {
+    ElMessage.error('总位数至少为 1')
+    return
+  }
+  const prev = new Set(
+    (activities.value.find((item) => item.id === createActivityId.value)?.schedules ?? []).map(
+      (item) => item.id,
+    ),
+  )
+  creating.value = true
+  try {
+    const updated = await createSchedule(createActivityId.value, {
+      start_time: createStart.value.toISOString(),
+      end_time: createEnd.value.toISOString(),
+      capacity: createCapacity.value,
+      price: createPrice.value.toFixed(2),
+      child_price: createChildPrice.value.toFixed(2),
+    })
+    const created = updated.schedules.find((item) => !prev.has(item.id))
+    replaceActivity(updated, created?.id)
+    ensureExpanded(updated.id)
+    fillCreatePrices(updated.id)
+    createStart.value = null
+    createEnd.value = null
+    ElMessage.success('排期已创建')
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : '创建失败')
+  } finally {
+    creating.value = false
+  }
+}
 
 const onSavePrices = async () => {
   const activity = selectedActivity.value
@@ -185,27 +256,93 @@ onMounted(load)
 <template>
   <div v-loading="loading">
     <h2>活动排期</h2>
-    <p class="hint">改价不影响已下单金额。关场次不删除已有预约。点联系人可跳到预约建联。</p>
-    <div class="filters">
-      <el-select v-model="selectedActivityId" placeholder="选择活动" filterable style="width: 280px">
-        <el-option
-          v-for="activity in activities"
-          :key="activity.id"
-          :label="activity.name"
-          :value="activity.id"
-        />
-      </el-select>
-      <el-select v-model="selectedScheduleId" placeholder="选择场次" filterable style="width: 280px">
-        <el-option
-          v-for="schedule in selectedActivity?.schedules ?? []"
-          :key="schedule.id"
-          :label="formatRange(schedule.start_time, schedule.end_time)"
-          :value="schedule.id"
-        />
-      </el-select>
-    </div>
+    <p class="hint">
+      上方创建新场次。改价不影响已下单金额。关场次不删除已有预约。点联系人可跳到预约建联。
+    </p>
 
-    <el-card v-if="selectedActivity && selectedSchedule" shadow="never">
+    <el-card class="create-card" shadow="never">
+      <h3>创建排期</h3>
+      <p class="card-desc">
+        给已有活动加一场。价格是该活动现价，改了会影响该活动所有未下单展示价；已下单金额不变。新场次默认开放。
+      </p>
+      <div class="create-form">
+        <el-select
+          v-model="createActivityId"
+          placeholder="选择活动"
+          filterable
+          style="width: 220px"
+        >
+          <el-option
+            v-for="activity in activities"
+            :key="activity.id"
+            :label="activity.name"
+            :value="activity.id"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="createStart"
+          type="datetime"
+          placeholder="开始时间"
+          style="width: 200px"
+        />
+        <el-date-picker
+          v-model="createEnd"
+          type="datetime"
+          placeholder="结束时间"
+          style="width: 200px"
+        />
+        <span>总位数</span>
+        <el-input-number
+          v-model="createCapacity"
+          :min="1"
+          :step="1"
+          controls-position="right"
+        />
+        <span>成人价</span>
+        <el-input-number
+          v-model="createPrice"
+          :min="0"
+          :precision="2"
+          :step="1"
+          controls-position="right"
+        />
+        <span>儿童价</span>
+        <el-input-number
+          v-model="createChildPrice"
+          :min="0"
+          :precision="2"
+          :step="1"
+          controls-position="right"
+        />
+        <el-button type="primary" :loading="creating" @click="onCreateSchedule">
+          创建排期
+        </el-button>
+      </div>
+    </el-card>
+
+    <el-card class="filter-card" shadow="never">
+      <h3>排期筛选</h3>
+      <p class="card-desc">选择已有活动和场次，查看该场预约、改名额或开关场次。</p>
+      <div class="filters">
+        <el-select v-model="selectedActivityId" placeholder="选择活动" filterable style="width: 280px">
+          <el-option
+            v-for="activity in activities"
+            :key="activity.id"
+            :label="activity.name"
+            :value="activity.id"
+          />
+        </el-select>
+        <el-select v-model="selectedScheduleId" placeholder="选择场次" filterable style="width: 280px">
+          <el-option
+            v-for="schedule in selectedActivity?.schedules ?? []"
+            :key="schedule.id"
+            :label="formatRange(schedule.start_time, schedule.end_time)"
+            :value="schedule.id"
+          />
+        </el-select>
+      </div>
+
+      <template v-if="selectedActivity && selectedSchedule">
       <div class="activity-head">
         <h3>{{ selectedActivity.name }}</h3>
         <div class="prices">
@@ -313,8 +450,9 @@ onMounted(load)
         </el-table-column>
       </el-table>
       <p v-else class="empty">该场暂无有效预约</p>
+      </template>
+      <p v-else-if="!loading" class="empty">请选择活动和场次</p>
     </el-card>
-    <p v-else-if="!loading" class="empty">请选择活动和场次</p>
 
     <section v-for="activity in activities" :key="activity.id" class="all-slots">
       <button
@@ -451,10 +589,26 @@ h2 {
   color: var(--el-text-color-secondary);
 }
 
+.create-card,
+.filter-card {
+  margin-bottom: 16px;
+}
+
+.card-desc {
+  margin: 0 0 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.create-form,
 .filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
+}
+
+.filters {
   margin-bottom: 16px;
 }
 

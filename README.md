@@ -105,7 +105,7 @@ Compose 与 PostgreSQL 前置到 Vue 之前，先稳住本地基础设施。
 
 第 21 步进行中：2C4G Ubuntu 24.04 已 SSH；Docker CE + Compose 已装；`qucamp.cn` / `www` / `admin` A 记录已指到该机；ICP 备案审核中。未完成：备案通过、安全组 80/443、时区、生产 Nginx/HTTPS（第 22 步）。
 
-**当前状态：** 第 1–6、8–20 步已完成；第 21 步进行中（如上）。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地用路径前缀区分：`/{campSlug}`、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings` 等；`/` 与旧路径（`/activity/:id`、`/camp`、`/bookings`…）redirect 到 `/luhe/...`。未发布或未知 slug 为 H5 404。登录 `GET /api/auth/wechat/start?camp=`，callback 回到 `{H5_ORIGIN}/{slug}`；「我的预约」只列当前 URL 营地；模板跳转带 `/{slug}/bookings/{id}`。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、改待付款、取消预约，以及改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。H5 预约列表/详情在合计旁展示待付款（入库字段）；「付款前请联系工作人员」为前端固定文案，不进库。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；日常 H5 与后台仍本机 `npm run dev`（5173 / 5174）。可选 `docker compose --profile web` 用 Nginx 托管构建后的 H5（8080）与员工后台（8081）并反代 `/api`；8080 是 `dist` 快照，改源码不会自动更新。改表走 Alembic 迁移并重启 backend，不是重启 Postgres。HTTPS、公网域名、微信真授权等备案通过后随第 21–22 步上 ECS。
+**当前状态：** 第 1–6、8–20 步已完成；第 21 步进行中（如上）。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地用路径前缀区分：`/{campSlug}`、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings` 等；`/` 与旧路径（`/activity/:id`、`/camp`、`/bookings`…）redirect 到 `/luhe/...`。未发布或未知 slug 为 H5 404。登录 `GET /api/auth/wechat/start?camp=`，callback 回到 `{H5_ORIGIN}/{slug}`；「我的预约」只列当前 URL 营地；模板跳转带 `/{slug}/bookings/{id}`。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、改待付款、取消预约，以及给已有活动加场次、改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。H5 预约列表/详情在合计旁展示待付款（入库字段）；「付款前请联系工作人员」为前端固定文案，不进库。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；日常 H5 与后台仍本机 `npm run dev`（5173 / 5174）。可选 `docker compose --profile web` 用 Nginx 托管构建后的 H5（8080）与员工后台（8081）并反代 `/api`；8080 是 `dist` 快照，改源码不会自动更新。改表走 Alembic 迁移并重启 backend，不是重启 Postgres。HTTPS、公网域名、微信真授权等备案通过后随第 21–22 步上 ECS。
 
 **下一步：** 等 ICP 备案通过 → 收尾第 21 步（安全组 80/443）→ 第 22 步生产 Compose + HTTPS。备案完成前不要对外开 80/443、不要在云上部署站点；可继续本机优化前端与字段。
 
@@ -237,6 +237,7 @@ Auth（已实现）：
 - `POST /api/admin/bookings/:id/cancel` pending/contacted → expired（退库存、不卡 24 小时；`commit` 后发取消通知）
 - `GET /api/admin/activities` 本营地活动 + 全部排期 + 每场未取消预约（含单笔金额与场次实收 `revenue`）
 - `POST /api/admin/activities/:id` 改成人/儿童价（旧单 `total_price` 不变）
+- `POST /api/admin/activities/:id/schedules` 给已有活动加场次（起止时间、总位数；可一并改该活动现价；新场默认开放）
 - `POST /api/admin/schedules/:id` 改 `capacity`（不得小于已订）或 `status`（`open`/`closed`）
 
 `/health` 无鉴权。业务 API 前缀 `/api`。本地 Vite 把 `/api` 代理到 `http://127.0.0.1:8000`。H5 Cookie 写在 `127.0.0.1:5173`，后台 Cookie 写在 `127.0.0.1:5174`，名称分别为 `ab_session` 与 `ab_admin_session`。Mock 游客登录须从 5173 打开 `/api/auth/wechat/start?camp=`，不要直接打 8000。
@@ -381,7 +382,7 @@ npm install
 npm run dev
 ```
 
-打开 `http://127.0.0.1:5174`。用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。401 跳 `/login`，不走微信。可看本营地预约（场次 + 下单时间）、建联、改待付款、取消预约；「活动排期」里改价、改名额、关闭/重开场次。不做新建活动与图集。`.env` 里密码若含 `#` 请加引号，改完 `.env` 后需 `docker compose up -d --force-recreate backend` 再 `seed_staff.py`。
+打开 `http://127.0.0.1:5174`。用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。401 跳 `/login`，不走微信。可看本营地预约（场次 + 下单时间）、建联、改待付款、取消预约；「活动排期」里给已有活动加场次、改价、改名额、关闭/重开场次。不做新建活动与图集。`.env` 里密码若含 `#` 请加引号，改完 `.env` 后需 `docker compose up -d --force-recreate backend` 再 `seed_staff.py`。
 
 生产构建：
 
