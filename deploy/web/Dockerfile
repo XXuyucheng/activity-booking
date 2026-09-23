@@ -6,4 +6,4 @@ FROM ${NGINX_IMAGE}
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY frontend/dist /usr/share/nginx/html/h5
 COPY admin/dist /usr/share/nginx/html/admin
-EXPOSE 80 81
+EXPOSE 80 81 443

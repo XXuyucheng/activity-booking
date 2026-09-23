@@ -41,15 +41,17 @@ activity-booking/                # 本地开发总入口
 │   ├── Dockerfile               # FastAPI 镜像（第 17 步）
 │   └── 后端/                    # Python 3.12 虚拟环境（不进 Git）
 ├── deploy/                      # Nginx 配置与前后端静态镜像（第 20 步）
-│   ├── nginx/default.conf
+│   ├── nginx/default.conf       # 本机预览 8080/8081
+│   ├── nginx/prod.conf          # ECS：443 + 证书
 │   └── web/Dockerfile
-├── compose.yaml                 # postgres + backend；` --profile web` 再起 Nginx
+├── compose.yaml                 # 本机：postgres 5433 + backend 8000；`--profile web` 再起 Nginx
+├── compose.prod.yaml            # ECS：只发布 80/443，不映射 5433/8000，不挂源码
 ├── backup/                      # 数据备份目录（第 23 步再加脚本；dump 文件不进 Git）
 ├── .env.example                 # 复制为 .env 后填写
 └── README.md
 ```
 
-`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；日常开发 H5 仍本机 Vite（5173），员工后台本机 Vite（5174），`/api` 都代理到 8000。生产形态用 `docker compose --profile web`：Nginx 托管构建后的静态资源并反代 FastAPI。
+`backup/` 目前是占位。`frontend/playground/` 是样式系统预览页，不进入游客主路径。虚拟环境目录 `backend/后端/` 不进 Git。第 17 步起 Postgres 与 FastAPI 由 Compose 启动；日常开发 H5 仍本机 Vite（5173），员工后台本机 Vite（5174），`/api` 都代理到 8000。本机预览生产形态用 `docker compose --profile web`（8080/8081，HTTP）。ECS 用 `docker compose -f compose.prod.yaml`（80/443，HTTPS）。
 
 ## 架构
 
@@ -103,11 +105,11 @@ Compose 与 PostgreSQL 前置到 Vue 之前，先稳住本地基础设施。
 22. [ ] 生产 Compose 部署
 23. [ ] 数据库自动备份
 
-第 21 步进行中：2C4G Ubuntu 24.04 已 SSH；Docker CE + Compose 已装；`qucamp.cn` / `www` / `admin` A 记录已指到该机；ICP 备案审核中。未完成：备案通过、安全组 80/443、时区、生产 Nginx/HTTPS（第 22 步）。
+第 21 步进行中：2C4G Ubuntu 24.04 已 SSH；Docker CE + Compose 已装；`qucamp.cn` / `www` / `admin` A 记录已指到该机；ICP 备案已通过。仓库里已有 `compose.prod.yaml` 与 `deploy/nginx/prod.conf`。未完成：安全组放行 80/443（IPv4）、ECS 上放置证书与生产 `.env` 后启动该文件（第 22 步）。
 
-**当前状态：** 第 1–6、8–20 步已完成；第 21 步进行中（如上）。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地用路径前缀区分：`/{campSlug}`、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings` 等；`/` 与旧路径（`/activity/:id`、`/camp`、`/bookings`…）redirect 到 `/luhe/...`。未发布或未知 slug 为 H5 404。登录 `GET /api/auth/wechat/start?camp=`，callback 回到 `{H5_ORIGIN}/{slug}`；「我的预约」只列当前 URL 营地；模板跳转带 `/{slug}/bookings/{id}`。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、改待付款、取消预约，以及给已有活动加场次、改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。H5 预约列表/详情在合计旁展示待付款（入库字段）；「付款前请联系工作人员」为前端固定文案，不进库。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；日常 H5 与后台仍本机 `npm run dev`（5173 / 5174）。可选 `docker compose --profile web` 用 Nginx 托管构建后的 H5（8080）与员工后台（8081）并反代 `/api`；8080 是 `dist` 快照，改源码不会自动更新。改表走 Alembic 迁移并重启 backend，不是重启 Postgres。HTTPS、公网域名、微信真授权等备案通过后随第 21–22 步上 ECS。
+**当前状态：** 第 1–6、8–20 步已完成；第 21 步进行中（如上）。游客端 H5 经 Vite 代理调 FastAPI：列表/价格/排期库存/下单/我的预约走 Postgres。营地用路径前缀区分：`/{campSlug}`、`/{campSlug}/activity/:id`、`/{campSlug}/camp`、`/{campSlug}/bookings` 等；`/` 与旧路径（`/activity/:id`、`/camp`、`/bookings`…）redirect 到 `/luhe/...`。未发布或未知 slug 为 H5 404。登录 `GET /api/auth/wechat/start?camp=`，callback 回到 `{H5_ORIGIN}/{slug}`；「我的预约」只列当前 URL 营地；模板跳转带 `/{slug}/bookings/{id}`。员工后台独立 `admin/`（5174）账号密码登录：按营地查看预约、建联、改待付款、取消预约，以及给已有活动加场次、改活动价格、改排期名额、关闭场次。改价不影响已下单金额；关场次不删除已有预约。H5 预约列表/详情在合计旁展示待付款（入库字段）；「付款前请联系工作人员」为前端固定文案，不进库。营地介绍的地点/故事/设施/套票与活动图集/标签/分段正文仍按活动名叠加前端 mock（v1.1，未拓表）。Postgres 与 FastAPI 由 Compose 启动（8000）；日常 H5 与后台仍本机 `npm run dev`（5173 / 5174）。可选 `docker compose --profile web` 用 Nginx 托管构建后的 H5（8080）与员工后台（8081）并反代 `/api`；8080 是 `dist` 快照，改源码不会自动更新。改表走 Alembic 迁移并重启 backend，不是重启 Postgres。ECS 用 `compose.prod.yaml`：Nginx 按域名听 443，证书挂载 `/opt/activity-booking/certs`，80 跳 HTTPS；Postgres 与 FastAPI 不映射到宿主机；uvicorn 不开启 `--reload`、不挂源码。微信真授权等 HTTPS 打开后再填服务器 `.env`。
 
-**下一步：** 等 ICP 备案通过 → 收尾第 21 步（安全组 80/443）→ 第 22 步生产 Compose + HTTPS。备案完成前不要对外开 80/443、不要在云上部署站点；可继续本机优化前端与字段。
+**下一步：** 安全组对公网放行 80/443（来源 IPv4）。ECS `git clone` 后手写生产 `.env`（不要拷本机那份），证书放在 `/opt/activity-booking/certs/`。本机 `sh deploy/web/build-static.sh` 后，把 `frontend/dist` 与 `admin/dist` 放到服务器同样路径（或本机打好镜像再 `docker load`），再 `docker compose -f compose.prod.yaml up -d --build`。不要在 ECS 上 `npm run build`，不要把 5433/8000 映射到公网。日常开发仍是本机 `docker compose up` 与 Vite 5173/5174。
 
 ## 后端架构
 
@@ -312,9 +314,15 @@ curl -sI http://127.0.0.1:8080/luhe
 
 浏览器打开 `http://127.0.0.1:8080/`（会进 `/luhe`）、员工后台 `http://127.0.0.1:8081/`。H5 与 `/api` 同域，Cookie 写在 8080。Playground：`http://127.0.0.1:8080/playground/`。
 
-在 Nginx 入口测登录时，把 `.env` 的 `H5_ORIGIN` 改成 `http://127.0.0.1:8080`、`ADMIN_ORIGIN` 改成 `http://127.0.0.1:8081`，然后 `docker compose up -d --force-recreate backend`。改回 Vite 开发时再设回 5173/5174。本机预览 Nginx 仍不必上云。ECS 已在准备（第 21 步进行中）；备案完成前不要对外开 80/443、不要在云上部署站点。HTTPS、域名、微信回调域名随备案通过后配置。
+在 Nginx 入口测登录时，把 `.env` 的 `H5_ORIGIN` 改成 `http://127.0.0.1:8080`、`ADMIN_ORIGIN` 改成 `http://127.0.0.1:8081`，然后 `docker compose up -d --force-recreate backend`。改回 Vite 开发时再设回 5173/5174。本机预览不要用 `compose.prod.yaml`。
 
-镜像在本机 `npm run build` 后打进 Nginx 镜像。2 核 4G 的 ECS 跑 postgres + backend + nginx 够用；第 21 步把本机打好的镜像拷上去即可，不要在云主机上编译前端。
+镜像在本机 `npm run build` 后打进 Nginx 镜像。2 核 4G 的 ECS 跑 postgres + backend + nginx 够用；不要在云主机上编译前端。ECS 启动：
+
+```bash
+docker compose -f compose.prod.yaml up -d --build
+```
+
+这会读取服务器上的 `.env`，把 `/opt/activity-booking/certs` 挂进 Nginx，并使用 `deploy/nginx/prod.conf`。`dist` 不在 Git 里，构建前要先放到服务器的 `frontend/dist` 与 `admin/dist`，或在本机 `docker build` 后 `docker save` / `docker load`。空库再执行下面的 `seed_catalog.py` 与 `seed_staff.py`。
 
 只停 Nginx、保留数据库：
 
@@ -414,8 +422,8 @@ npm run build
 | `SESSION_COOKIE_NAME` | Session Cookie 名 | `ab_session` |
 | `SESSION_COOKIE_SECURE` | Cookie `Secure`（本地 http 为 false） | `false` |
 | `SESSION_TTL_SECONDS` | Session 有效期（秒） | `604800`（7 天） |
-| `H5_ORIGIN` | 登录成功 302 前缀（再拼 `/{slug}`）；CORS 允许源；模板消息跳转前缀 | `http://127.0.0.1:5173`（Nginx 预览改为 `http://127.0.0.1:8080`） |
-| `ADMIN_ORIGIN` | 员工后台源（CORS） | `http://127.0.0.1:5174`（Nginx 预览改为 `http://127.0.0.1:8081`） |
+| `H5_ORIGIN` | 登录成功 302 前缀（再拼 `/{slug}`）；CORS 允许源；模板消息跳转前缀 | 本机 `http://127.0.0.1:5173`（Nginx 预览 `http://127.0.0.1:8080`；ECS `https://qucamp.cn`） |
+| `ADMIN_ORIGIN` | 员工后台源（CORS） | 本机 `http://127.0.0.1:5174`（Nginx 预览 `http://127.0.0.1:8081`；ECS `https://admin.qucamp.cn`） |
 | `ADMIN_SESSION_COOKIE_NAME` | 员工 Session Cookie 名 | `ab_admin_session` |
 | `ADMIN_USERNAME` | `seed_staff.py` 员工用户名 | 无 |
 | `ADMIN_PASSWORD` | `seed_staff.py` 员工密码（不进 Git） | 无 |
