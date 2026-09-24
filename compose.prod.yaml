@@ -76,6 +76,7 @@ services:
     volumes:
       - ${CERTS_DIR:-/opt/activity-booking/certs}:/etc/nginx/certs:ro
       - ./deploy/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wechat-verify:/usr/share/nginx/html/wechat-verify:ro
     depends_on:
       backend:
         condition: service_healthy
