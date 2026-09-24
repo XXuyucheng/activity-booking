@@ -6,6 +6,7 @@ import DateStrip from '../components/DateStrip.vue'
 import BookingFormDialog, {
   type BookingPayload,
 } from '../components/BookingFormDialog.vue'
+import { fetchMe } from '../api/auth'
 import { createBooking } from '../api/bookings'
 import { fetchActivity, type ActivityDetailResponse } from '../api/catalog'
 import { ApiError, redirectToLogin } from '../api/http'
@@ -20,6 +21,11 @@ import {
   type ScheduleSlot,
 } from '../lib/schedules'
 import { useCampRouter } from '../lib/campRoute'
+import {
+  clearOAuthReturn,
+  peekOAuthReturn,
+  saveOAuthReturn,
+} from '../lib/oauthReturn'
 
 const route = useRoute()
 const { campSlug, push, router } = useCampRouter()
@@ -31,6 +37,8 @@ const selectedDate = ref('')
 const selectedTime = ref('')
 const showBooking = ref(false)
 const submitting = ref(false)
+const checkingLogin = ref(false)
+let resumeToken = 0
 
 const extras = computed(() =>
   activity.value ? getMockExtrasByName(activity.value.name) : undefined,
@@ -108,9 +116,35 @@ watch(
   { immediate: true },
 )
 
+const pendingHere = () => {
+  const pending = peekOAuthReturn()
+  if (!pending || pending.path !== route.path) return null
+  return pending
+}
+
+const findPendingSlot = (list: DateSession[]) => {
+  const pending = pendingHere()
+  if (!pending) return null
+  for (const session of list) {
+    const slot = session.slots.find((item) => item.scheduleId === pending.scheduleId)
+    if (slot) return { session, slot }
+  }
+  return null
+}
+
 watch(
   sessions,
   (list) => {
+    const pending = pendingHere()
+    const found = findPendingSlot(list)
+    if (found) {
+      selectedDate.value = found.session.date
+      return
+    }
+    if (pending && activity.value) {
+      showToast('请重新选择场次')
+      clearOAuthReturn()
+    }
     const open = list.find((session) => !isSessionFull(session))
     selectedDate.value = (open ?? list[0])?.date ?? ''
   },
@@ -120,6 +154,34 @@ watch(
 watch(
   selectedSession,
   (session) => {
+    const pending = pendingHere()
+    const slot = session?.slots.find((item) => item.scheduleId === pending?.scheduleId)
+    if (pending && slot) {
+      selectedTime.value = slot.time
+      if (isSlotFull(slot)) {
+        showToast('名额已满')
+        clearOAuthReturn()
+        return
+      }
+      const token = ++resumeToken
+      void fetchMe()
+        .then((me) => {
+          if (token !== resumeToken || !pendingHere()) return
+          if (!me.logged_in) {
+            clearOAuthReturn()
+            return
+          }
+          showBooking.value = true
+          clearOAuthReturn()
+        })
+        .catch(() => {
+          if (token !== resumeToken) return
+          clearOAuthReturn()
+        })
+      return
+    }
+    if (pending && session) clearOAuthReturn()
+    resumeToken += 1
     selectedTime.value = pickDefaultSlot(session)
   },
   { immediate: true },
@@ -146,7 +208,8 @@ const remainingCount = computed(() => {
   return slot ? Math.max(slotRemaining(slot), 0) : 0
 })
 
-const onBook = () => {
+const onBook = async () => {
+  if (checkingLogin.value) return
   const session = selectedSession.value
   if (!session) {
     showToast('请选择场次')
@@ -161,7 +224,20 @@ const onBook = () => {
     showToast('名额已满')
     return
   }
-  showBooking.value = true
+  checkingLogin.value = true
+  try {
+    const me = await fetchMe()
+    if (me.logged_in) {
+      showBooking.value = true
+      return
+    }
+    saveOAuthReturn(route.path, slot.scheduleId)
+    redirectToLogin()
+  } catch {
+    showToast('登录状态获取失败')
+  } finally {
+    checkingLogin.value = false
+  }
 }
 
 const onBookingSubmit = async (payload: BookingPayload) => {
@@ -192,6 +268,7 @@ const onBookingSubmit = async (payload: BookingPayload) => {
     }
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
+      saveOAuthReturn(route.path, slot.scheduleId)
       redirectToLogin()
       return
     }

@@ -8,6 +8,7 @@ import {
   type BookingResponse,
 } from '../api/bookings'
 import { ApiError, redirectToLogin } from '../api/http'
+import { clearOAuthReturn } from '../lib/oauthReturn'
 import { formatClockRange, formatDateTime } from '../lib/schedules'
 import { useCampRouter } from '../lib/campRoute'
 import { PAYMENT_HINT, isPaidOff } from '../data/booking-copy'
@@ -43,6 +44,7 @@ const load = async () => {
   } catch (error) {
     booking.value = null
     if (error instanceof ApiError && error.status === 401) {
+      clearOAuthReturn()
       redirectToLogin()
       return
     }
@@ -84,6 +86,7 @@ const onCancel = () => {
         void replace('bookings')
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
+          clearOAuthReturn()
           redirectToLogin()
           return
         }

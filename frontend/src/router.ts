@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
 import CampShell from './views/CampShell.vue'
+import { campSlugFromPath } from './lib/camp'
+import { peekOAuthReturn } from './lib/oauthReturn'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -75,4 +77,13 @@ export const router = createRouter({
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach((to) => {
+  if (to.name !== 'home') return
+  const pending = peekOAuthReturn()
+  if (!pending) return
+  const slug = typeof to.params.campSlug === 'string' ? to.params.campSlug : ''
+  if (campSlugFromPath(pending.path) !== slug) return
+  return pending.path
 })

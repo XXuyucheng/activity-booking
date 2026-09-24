@@ -5,6 +5,7 @@ import {
   type BookingResponse,
 } from '../api/bookings'
 import { ApiError, redirectToLogin } from '../api/http'
+import { clearOAuthReturn } from '../lib/oauthReturn'
 import { coverUrl } from '../lib/cover'
 import { formatClockRange } from '../lib/schedules'
 import { getMockExtrasByName } from '../data/mock-activities'
@@ -33,6 +34,7 @@ const load = async () => {
     list.value = await fetchBookings(campSlug.value)
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
+      clearOAuthReturn()
       redirectToLogin()
       return
     }
