@@ -74,6 +74,36 @@ ACTIVITIES: list[dict] = [
         "notice": "3–12 岁享儿童价；窑边温度高，请家长看好小朋友，勿靠近火口。",
         "kind": "yam",
     },
+    {
+        "name": "团扇制作体验",
+        "description": "选一柄团扇骨架，自己绘面、装柄，约四十分钟做成一把能带走的团扇。",
+        "cover": "tuanshan.webp",
+        "duration": 40,
+        "price": Decimal("40.00"),
+        "child_price": Decimal("40.00"),
+        "notice": "成人与儿童均为 40 元；约 40 分钟，小朋友请家长陪同。颜料可能沾手。",
+        "kind": "saturday10",
+    },
+    {
+        "name": "无患子手工皂制作体验",
+        "description": "用无患子自己调色、入模，约三十分钟做出一块手工皂。",
+        "cover": "wuhuanzi.webp",
+        "duration": 30,
+        "price": Decimal("40.00"),
+        "child_price": Decimal("40.00"),
+        "notice": "成人与儿童均为 40 元；约 30 分钟。皂液勿入口。",
+        "kind": "saturday10",
+    },
+    {
+        "name": "棒棒糖制作体验",
+        "description": "熬糖、选模具、插棒，约三十分钟做成一支自己的棒棒糖。",
+        "cover": "lollipop.webp",
+        "duration": 30,
+        "price": Decimal("40.00"),
+        "child_price": Decimal("40.00"),
+        "notice": "成人与儿童均为 40 元；约 30 分钟。糖浆温度高，请勿靠近锅具。",
+        "kind": "saturday10",
+    },
 ]
 
 
@@ -231,6 +261,22 @@ def _replace_schedules(session: Session, activity: Activity, kind: str) -> None:
                     12,
                     2,
                 )
+        return
+
+    if kind == "saturday10":
+        day = saturday
+        minutes = int(activity.duration or 0)
+        for _ in range(4):
+            start = _at(day, 10, 0)
+            _add_slot(
+                session,
+                activity.id,
+                start,
+                start + timedelta(minutes=minutes),
+                10,
+                0,
+            )
+            day += timedelta(days=7)
         return
 
     days = [tuesday, tuesday + timedelta(days=1), next_monday + timedelta(days=1), next_monday + timedelta(days=2)]

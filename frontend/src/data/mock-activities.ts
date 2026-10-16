@@ -1,6 +1,9 @@
 import activityCover from '../assets/activity-cover.png'
 import activityCoverPearl from '../assets/activity-cover-pearl.png'
 import kaodigua from '../assets/kaodigua.webp'
+import tuanshan from '../assets/tuanshan.webp'
+import wuhuanzi from '../assets/wuhuanzi.webp'
+import lollipop from '../assets/lollipop.webp'
 
 export type CampFacility = {
   name: string
@@ -180,6 +183,81 @@ export const activityExtras: ActivityExtras[] = [
       {
         heading: '温馨提示',
         body: '窑边温度高，请看好小朋友。如遇雨天会改到棚下进行。',
+      },
+    ],
+  },
+  {
+    title: '团扇制作体验',
+    images: [tuanshan],
+    intro: '选一柄团扇骨架，自己绘面、装柄，约四十分钟做成一把能带走的团扇。',
+    tags: ['手作', '亲子'],
+    highlights: ['选一柄骨架', '绘一面扇面', '装柄带走'],
+    detail: [
+      {
+        heading: '活动流程',
+        body: '集合后由手作老师发骨架和颜料，先看怎么绷面、怎么上色。每人绘一面自己的扇面，再装柄、收边。放一会儿就能带走。',
+      },
+      {
+        heading: '适合谁',
+        body: '适合 4 岁以上亲子家庭，也欢迎想慢慢做一把扇子的大人。全程约四十分钟。',
+      },
+      {
+        heading: '费用包含',
+        body: '包含团扇骨架、扇面、颜料与工具、保险。不含往返交通。',
+      },
+      {
+        heading: '温馨提示',
+        body: '颜料可能沾手，请穿耐脏的衣服。小朋友请家长陪同。',
+      },
+    ],
+  },
+  {
+    title: '无患子手工皂制作体验',
+    images: [wuhuanzi],
+    intro: '用无患子自己调色、入模，约三十分钟做出一块手工皂。',
+    tags: ['手作', '亲子'],
+    highlights: ['认无患子', '调色入模', '带走一块皂'],
+    detail: [
+      {
+        heading: '活动流程',
+        body: '老师先讲无患子怎么起泡，再发皂基和模具。每人调一种颜色，倒进模具，稍等脱模后带走。',
+      },
+      {
+        heading: '适合谁',
+        body: '适合亲子和想试一次手工皂的人。全程约三十分钟，步骤少。',
+      },
+      {
+        heading: '费用包含',
+        body: '包含皂基、无患子、模具与工具、保险。不含往返交通。',
+      },
+      {
+        heading: '温馨提示',
+        body: '皂液勿入口。脱模前请勿用力掰模具。',
+      },
+    ],
+  },
+  {
+    title: '棒棒糖制作体验',
+    images: [lollipop],
+    intro: '熬糖、选模具、插棒，约三十分钟做成一支自己的棒棒糖。',
+    tags: ['手作', '亲子'],
+    highlights: ['看糖怎么熬', '选一个模具', '插棒放凉带走'],
+    detail: [
+      {
+        heading: '活动流程',
+        body: '糖浆由老师熬好，每人选模具、调一点颜色，倒进模具后插棒。放凉能拿起来再带走。',
+      },
+      {
+        heading: '适合谁',
+        body: '适合喜欢甜食的亲子。全程约三十分钟。糖浆烫，小朋友只做选模和插棒。',
+      },
+      {
+        heading: '费用包含',
+        body: '包含糖浆、模具、棒与工具、保险。不含正餐。',
+      },
+      {
+        heading: '温馨提示',
+        body: '糖浆温度高，请不要自己去碰锅。做好后放凉再吃。',
       },
     ],
   },
