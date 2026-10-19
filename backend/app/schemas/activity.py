@@ -95,6 +95,32 @@ class CreateScheduleRequest(BaseModel):
         return self
 
 
+class HistoryBooking(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    contact_name: str
+    contact_phone: str
+    adult_count: int
+    child_count: int
+    status: str
+    total_price: Decimal
+    unpaid_amount: Decimal
+    remark: str
+
+
+class HistoryScheduleItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    activity_id: uuid.UUID
+    activity_name: str
+    start_time: datetime
+    end_time: datetime
+    status: str
+    bookings: list[HistoryBooking] = Field(default_factory=list)
+
+
 class UpdateScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

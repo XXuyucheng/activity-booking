@@ -22,6 +22,11 @@ export const router = createRouter({
       component: () => import('./views/ActivitiesView.vue'),
     },
     {
+      path: '/history',
+      name: 'history',
+      component: () => import('./views/HistoryView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/',
     },

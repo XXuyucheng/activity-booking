@@ -11,7 +11,7 @@ import {
   type AdminSchedule,
 } from '../api/catalog'
 import { ApiError } from '../api/http'
-import { formatRange } from '../lib/time'
+import { formatRange, shanghaiDateKey, todayShanghaiKey } from '../lib/time'
 
 const router = useRouter()
 const loading = ref(false)
@@ -40,6 +40,18 @@ const formatMoney = (value: string | number) => `¥${Number(value).toFixed(2)}`
 const selectedActivity = computed(
   () => activities.value.find((item) => item.id === selectedActivityId.value) ?? null,
 )
+
+const upcomingActivities = computed(() => {
+  const today = todayShanghaiKey()
+  return activities.value
+    .map((activity) => ({
+      ...activity,
+      schedules: activity.schedules.filter(
+        (schedule) => shanghaiDateKey(schedule.start_time) >= today,
+      ),
+    }))
+    .filter((activity) => activity.schedules.length > 0)
+})
 
 const selectedSchedule = computed((): AdminSchedule | null => {
   const activity = selectedActivity.value
@@ -257,7 +269,7 @@ onMounted(load)
   <div v-loading="loading">
     <h2>活动排期</h2>
     <p class="hint">
-      上方创建新场次。改价不影响已下单金额。关场次不删除已有预约。点联系人可跳到预约建联。
+      上方创建新场次。改价不影响已下单金额。关场次不删除已有预约。点联系人可跳到预约建联。过期场次在「历史活动」查看。
     </p>
 
     <el-card class="create-card" shadow="never">
@@ -454,7 +466,9 @@ onMounted(load)
       <p v-else-if="!loading" class="empty">请选择活动和场次</p>
     </el-card>
 
-    <section v-for="activity in activities" :key="activity.id" class="all-slots">
+    <p v-if="!loading && upcomingActivities.length === 0" class="empty">暂无当天及以后的排期</p>
+
+    <section v-for="activity in upcomingActivities" :key="activity.id" class="all-slots">
       <button
         type="button"
         class="all-slots-toggle"

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
+from app.models.activity import Activity
 from app.models.schedule import Schedule
 
 
@@ -19,6 +21,20 @@ class ScheduleRepository:
             .order_by(Schedule.start_time)
         )
         return list(self._db.scalars(stmt))
+
+    def list_past_by_camp_id(
+        self,
+        camp_id: uuid.UUID,
+        before: datetime,
+    ) -> list[Schedule]:
+        stmt = (
+            select(Schedule)
+            .join(Schedule.activity)
+            .options(contains_eager(Schedule.activity))
+            .where(Activity.camp_id == camp_id, Schedule.start_time < before)
+            .order_by(Schedule.start_time.desc())
+        )
+        return list(self._db.scalars(stmt).unique())
 
     def list_by_activity_id(self, activity_id: uuid.UUID) -> list[Schedule]:
         stmt = (

@@ -23,6 +23,8 @@ from app.schemas.activity import (
     AdminScheduleBooking,
     AdminScheduleItem,
     CreateScheduleRequest,
+    HistoryBooking,
+    HistoryScheduleItem,
     ScheduleResponse,
     UpdateActivityPricesRequest,
     UpdateScheduleRequest,
@@ -152,6 +154,40 @@ class ActivityService:
                 )
             )
         return items
+
+    def list_history(self, camp_id: uuid.UUID) -> list[HistoryScheduleItem]:
+        now = datetime.now(_SH)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        schedules = self._schedules.list_past_by_camp_id(camp_id, today_start)
+        booked = self._bookings.list_by_schedule_ids([schedule.id for schedule in schedules])
+        by_slot: dict[uuid.UUID, list] = defaultdict(list)
+        for booking in booked:
+            by_slot[booking.schedule_id].append(booking)
+        return [
+            HistoryScheduleItem(
+                id=schedule.id,
+                activity_id=schedule.activity_id,
+                activity_name=schedule.activity.name,
+                start_time=schedule.start_time,
+                end_time=schedule.end_time,
+                status=schedule.status,
+                bookings=[
+                    HistoryBooking(
+                        id=booking.id,
+                        contact_name=booking.contact_name,
+                        contact_phone=booking.contact_phone,
+                        adult_count=booking.adult_count,
+                        child_count=booking.child_count,
+                        status=booking.status,
+                        total_price=booking.total_price,
+                        unpaid_amount=booking.unpaid_amount,
+                        remark=booking.remark,
+                    )
+                    for booking in by_slot[schedule.id]
+                ],
+            )
+            for schedule in schedules
+        ]
 
     def update_prices(
         self,

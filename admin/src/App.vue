@@ -32,6 +32,7 @@ const onLogout = async () => {
         <el-menu :default-active="route.path" router>
           <el-menu-item index="/">预约建联</el-menu-item>
           <el-menu-item index="/activities">活动排期</el-menu-item>
+          <el-menu-item index="/history">历史活动</el-menu-item>
         </el-menu>
       </el-aside>
       <el-main>

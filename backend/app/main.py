@@ -8,6 +8,7 @@ from app.api.routers import (
     admin_activities,
     admin_auth,
     admin_bookings,
+    admin_history,
     admin_schedules,
     auth,
     bookings,
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     application.include_router(auth.router)
     application.include_router(admin_auth.router)
     application.include_router(admin_bookings.router)
+    application.include_router(admin_history.router)
     application.include_router(admin_activities.router)
     application.include_router(admin_schedules.router)
     application.include_router(camps.router)
